@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { installDefaultConfiguration, resolveWorkerPaths } from '../lib/config.mjs';
 import { makeTempDir, initGitRepo, runNode, runProcess, writeExecutable } from './helpers.mjs';
@@ -11,6 +11,26 @@ export async function createReviewedFixture({ dirty = false } = {}) {
   const home = await makeTempDir('pi-workflow-home-');
   const repositoryRoot = await initGitRepo(path.join(home, 'source'));
   if (dirty) await writeFile(path.join(repositoryRoot, 'README.md'), '# uncommitted user work\n');
+  const threadId = `019f8c7b-e659-7463-${Math.random().toString(16).slice(2).padEnd(12, '0').slice(0, 12)}`;
+  const codexSessionDirectory = path.join(home, '.codex', 'sessions', '2026', '07', '23');
+  await mkdir(codexSessionDirectory, { recursive: true });
+  const codexSessionFile = path.join(codexSessionDirectory, `rollout-test-${threadId}.jsonl`);
+  await writeFile(codexSessionFile, `${JSON.stringify({
+    type: 'event_msg',
+    payload: {
+      type: 'token_count',
+      info: {
+        total_token_usage: {
+          input_tokens: 1000,
+          cached_input_tokens: 800,
+          cache_write_input_tokens: 0,
+          output_tokens: 100,
+          reasoning_output_tokens: 0,
+          total_tokens: 1100,
+        },
+      },
+    },
+  })}\n`);
   const paths = resolveWorkerPaths({}, home);
   await installDefaultConfiguration({ paths });
   const pi = path.join(home, 'bin', 'pi');
@@ -49,6 +69,7 @@ console.log(JSON.stringify({ type: 'message_end', message: { role: 'assistant', 
     PI_WORKER_STATE_DIR: paths.stateRoot,
     PI_WORKER_CACHE_DIR: paths.cacheRoot,
     PI_WORKER_PI_BIN: pi,
+    CODEX_THREAD_ID: threadId,
     VOLCENGINE_API_KEY: 'test-key-not-real',
   };
   const prepared = await runNode(cli, ['prepare', '--task', taskFile], { env });
@@ -77,6 +98,7 @@ console.log(JSON.stringify({ type: 'message_end', message: { role: 'assistant', 
     reviewFile,
     worktree: JSON.parse(prepared.stdout).worktreePath,
     sourceHead: head,
+    codexSessionFile,
   };
 }
 
