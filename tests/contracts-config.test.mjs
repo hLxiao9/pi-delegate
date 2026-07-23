@@ -29,6 +29,7 @@ test('task and approve review contracts normalize valid inputs', () => {
   const review = validateReviewResult({
     schemaVersion: 1,
     verdict: 'approve',
+    diffSha256: 'a'.repeat(64),
     findings: [],
     verificationGaps: [],
     summary: 'Diff and independent checks satisfy the contract.',
@@ -49,6 +50,7 @@ test('approve reviews cannot contain blocking findings', () => {
   assert.throws(() => validateReviewResult({
     schemaVersion: 1,
     verdict: 'approve',
+    diffSha256: 'a'.repeat(64),
     findings: [{
       priority: 'P2',
       file: 'src/a.js',

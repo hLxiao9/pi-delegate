@@ -4,10 +4,11 @@
   "title": "Sol Review Result",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "verdict", "findings", "verificationGaps", "summary"],
+  "required": ["schemaVersion", "verdict", "diffSha256", "findings", "verificationGaps", "summary"],
   "properties": {
     "schemaVersion": { "const": 1 },
     "verdict": { "enum": ["approve", "revise"] },
+    "diffSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
     "findings": {
       "type": "array",
       "items": {

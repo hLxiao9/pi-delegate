@@ -129,8 +129,9 @@ test('a failed first verification can be revised once and then pass', async () =
   const failed = await runNode(cli, ['verify', '--id', item.runId], { env: item.env });
   assert.equal(failed.code, 0, failed.stderr);
   assert.equal(JSON.parse(failed.stdout).passed, false);
+  const firstVerification = JSON.parse(await readFile(path.join(item.paths.stateRoot, 'runs', item.runId, 'verification.json'), 'utf8'));
   const reviewFile = path.join(item.home, 'repair-review.json');
-  await writeFile(reviewFile, JSON.stringify({ schemaVersion: 1, verdict: 'revise', findings: [{ priority: 'P1', file: 'src/result.js', line: 1, problem: 'The exported value is incorrect', evidence: 'Independent verification exits 1 for value 7', requiredChange: 'Export value 42' }], verificationGaps: [], summary: 'Correct the failed acceptance value.' }));
+  await writeFile(reviewFile, JSON.stringify({ schemaVersion: 1, verdict: 'revise', diffSha256: firstVerification.security.diffSha256, findings: [{ priority: 'P1', file: 'src/result.js', line: 1, problem: 'The exported value is incorrect', evidence: 'Independent verification exits 1 for value 7', requiredChange: 'Export value 42' }], verificationGaps: [], summary: 'Correct the failed acceptance value.' }));
   const revised = await runNode(cli, ['revise', '--id', item.runId, '--review', reviewFile], { env: item.env });
   assert.equal(revised.code, 0, revised.stderr);
   assert.equal(JSON.parse(revised.stdout).revisionRound, 1);
@@ -166,8 +167,9 @@ test('a structured revise turn returns to verifying and is limited to two rounds
   assert.equal(run.code, 0, run.stderr);
   const firstVerify = await runNode(cli, ['verify', '--id', item.runId], { env: item.env });
   assert.equal(firstVerify.code, 0, firstVerify.stderr);
+  const firstVerification = JSON.parse(await readFile(path.join(item.paths.stateRoot, 'runs', item.runId, 'verification.json'), 'utf8'));
   const reviewFile = path.join(item.home, 'review.json');
-  await writeFile(reviewFile, JSON.stringify({ schemaVersion: 1, verdict: 'revise', findings: [{ priority: 'P2', file: 'src/result.js', line: 1, problem: 'Require an explicit regression comment', evidence: 'Comment is absent', requiredChange: 'Add a concise regression comment without changing value' }], verificationGaps: [], summary: 'One required source clarification remains.' }));
+  await writeFile(reviewFile, JSON.stringify({ schemaVersion: 1, verdict: 'revise', diffSha256: firstVerification.security.diffSha256, findings: [{ priority: 'P2', file: 'src/result.js', line: 1, problem: 'Require an explicit regression comment', evidence: 'Comment is absent', requiredChange: 'Add a concise regression comment without changing value' }], verificationGaps: [], summary: 'One required source clarification remains.' }));
   for (let round = 1; round <= 2; round += 1) {
     const revised = await runNode(cli, ['revise', '--id', item.runId, '--review', reviewFile], { env: item.env });
     assert.equal(revised.code, 0, revised.stderr);

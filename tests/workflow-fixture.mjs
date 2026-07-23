@@ -58,10 +58,12 @@ console.log(JSON.stringify({ type: 'message_end', message: { role: 'assistant', 
   const verified = await runNode(cli, ['verify', '--id', runId], { env });
   assert.equal(verified.code, 0, verified.stderr);
   assert.equal(JSON.parse(verified.stdout).passed, true);
+  const verification = JSON.parse(await readFile(path.join(paths.stateRoot, 'runs', runId, 'verification.json'), 'utf8'));
   const reviewFile = path.join(home, 'approve-review.json');
   await writeFile(reviewFile, JSON.stringify({
     schemaVersion: 1,
     verdict: 'approve',
+    diffSha256: verification.security.diffSha256,
     findings: [],
     verificationGaps: [],
     summary: 'The actual diff is scoped, correct, and independently verified.',
