@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { access, readFile, stat, writeFile } from 'node:fs/promises';
+import { access, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { installDefaultConfiguration, resolveWorkerPaths } from '../lib/config.mjs';
@@ -120,4 +120,49 @@ else if (process.argv.includes('--list-models')) console.log('volcengine-plan/di
   assert.equal(result.code, 1);
   assert.match(JSON.parse(result.stderr).error.message, /Model is not available/);
   await assert.rejects(access(path.join(paths.stateRoot, 'runs')), { code: 'ENOENT' });
+});
+
+async function assertPreflightFailure(paths, result) {
+  assert.equal(result.code, 1);
+  assert.equal(JSON.parse(result.stderr).error.code, 'DOCTOR_FAILED');
+  await assert.rejects(access(path.join(paths.stateRoot, 'runs')), { code: 'ENOENT' });
+  await assert.rejects(access(path.join(paths.cacheRoot, 'worktrees')), { code: 'ENOENT' });
+}
+
+test('doctor redacts Pi diagnostics from structured failures', async () => {
+  const { paths, pi, env } = await fixture();
+  const sentinel = 'review-secret-should-not-appear';
+  await writeExecutable(pi, `#!/usr/bin/env node
+if (process.argv.includes('--version')) console.log('0.80.10');
+else if (process.argv.includes('--list-models')) { console.error('${sentinel}'); process.exitCode = 2; }
+`);
+  const result = await runNode(cli, ['doctor'], { env });
+  await assertPreflightFailure(paths, result);
+  assert.doesNotMatch(result.stdout, new RegExp(sentinel));
+  assert.doesNotMatch(result.stderr, new RegExp(sentinel));
+  assert.doesNotMatch(JSON.stringify(JSON.parse(result.stderr).error.details), new RegExp(sentinel));
+});
+
+test('doctor normalizes invalid config to a sanitized preflight failure', async () => {
+  const { paths, env } = await fixture();
+  await writeFile(paths.configFile, '{}');
+  const result = await runNode(cli, ['doctor'], { env });
+  await assertPreflightFailure(paths, result);
+});
+
+test('doctor normalizes corrupt or missing models data to a preflight failure', async () => {
+  const { paths, env } = await fixture();
+  await writeFile(paths.modelsFile, '{invalid json');
+  await assertPreflightFailure(paths, await runNode(cli, ['doctor'], { env }));
+  await unlink(paths.modelsFile);
+  await assertPreflightFailure(paths, await runNode(cli, ['doctor'], { env }));
+  await writeFile(paths.modelsFile, JSON.stringify({ providers: {} }));
+  await assertPreflightFailure(paths, await runNode(cli, ['doctor'], { env }));
+});
+
+test('doctor normalizes invalid task contract to a preflight failure', async () => {
+  const { home, paths, env } = await fixture();
+  const task = path.join(home, 'invalid-task.json');
+  await writeFile(task, '{}');
+  await assertPreflightFailure(paths, await runNode(cli, ['doctor', '--task', task], { env }));
 });
