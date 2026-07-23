@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readlink, symlink, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { installDefaultConfiguration, resolveWorkerPaths } from '../lib/config.mjs';
@@ -121,6 +121,24 @@ test('prepare rejects a tracked relative symlink that escapes the worker worktre
   task.baseRevision = fixture.head;
   await writeFile(fixture.taskFile, JSON.stringify(task));
   await assertPrepareRejectsEscape(fixture);
+});
+
+test('prepare rejects a tracked regular file replaced by an unstaged absolute escaping symlink', async () => {
+  const fixture = await setup();
+  const readme = path.join(fixture.repositoryRoot, 'README.md');
+  await unlink(readme);
+  await symlink('/private/tmp/pi-worker-outside', readme);
+  await assertPrepareRejectsEscape(fixture);
+  assert.equal(await readlink(readme), '/private/tmp/pi-worker-outside');
+});
+
+test('prepare rejects a tracked regular file replaced by an unstaged relative escaping symlink', async () => {
+  const fixture = await setup();
+  const readme = path.join(fixture.repositoryRoot, 'README.md');
+  await unlink(readme);
+  await symlink('../../pi-worker-outside', readme);
+  await assertPrepareRejectsEscape(fixture);
+  assert.equal(await readlink(readme), '../../pi-worker-outside');
 });
 
 test('prepare fails closed when a source fingerprint output would be truncated', async () => {
