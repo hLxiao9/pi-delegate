@@ -4,7 +4,7 @@
   "defaultProfile": "volcengine",
   "maxRevisionRounds": 2,
   "autoIntegrateCleanSource": true,
-  "retryDelaysMs": [1000, 3000],
+  "retryDelaysMs": [1000],
   "limits": {
     "piTimeoutSeconds": 1800,
     "maxChangedFiles": 80,

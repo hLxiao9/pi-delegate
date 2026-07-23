@@ -17,32 +17,39 @@ if (args.includes('--version')) { console.log('0.80.10'); process.exit(0); }
 if (args.includes('--list-models')) { console.log('volcengine-plan/ark-code-latest'); process.exit(0); }
 const provider = args[args.indexOf('--provider') + 1];
 const modelName = args[args.indexOf('--model') + 1];
-mkdirSync(process.env.HOME, { recursive: true });
-writeFileSync(path.join(process.env.HOME, 'argv.json'), JSON.stringify(args));
-writeFileSync(path.join(process.env.HOME, 'env.json'), JSON.stringify(Object.keys(process.env).sort()));
 const mode = ${JSON.stringify(mode)};
-const counterFile = path.join(process.env.HOME, 'counter');
-let count = 0;
-try { count = Number(readFileSync(counterFile, 'utf8')); } catch {}
-writeFileSync(counterFile, String(count + 1));
-if (mode === 'transient-once' && count === 0) { console.error('429 rate limit'); process.exit(1); }
-if (mode === 'fallback' && provider === 'volcengine-plan') { console.error('503 overloaded'); process.exit(1); }
-if (mode.startsWith('auth')) { console.error('401 invalid api key'); process.exit(1); }
-mkdirSync(path.join(process.cwd(), 'src'), { recursive: true });
-writeFileSync(path.join(process.cwd(), 'src', 'generated.js'), 'export const generated = true;\\n');
-console.log(JSON.stringify({ type: 'session', version: 3, id: 'fake', cwd: process.cwd() }));
-console.log(JSON.stringify({ type: 'message_end', message: { role: 'assistant', provider, model: modelName, stopReason: 'stop', content: [{ type: 'text', text: 'implemented' }], usage: { input: 100, output: 20, cacheRead: 40, cacheWrite: 0, totalTokens: 160, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } } }));
-console.log(JSON.stringify({ type: 'agent_end', messages: [] }));
+function execute() {
+  mkdirSync(process.env.HOME, { recursive: true });
+  writeFileSync(path.join(process.env.HOME, 'argv.json'), JSON.stringify(args));
+  writeFileSync(path.join(process.env.HOME, 'env.json'), JSON.stringify(Object.keys(process.env).sort()));
+  const counterFile = path.join(process.env.HOME, 'counter');
+  let count = 0;
+  try { count = Number(readFileSync(counterFile, 'utf8')); } catch {}
+  writeFileSync(counterFile, String(count + 1));
+  if (mode === 'transient-once' && count === 0) { console.error('429 rate limit'); process.exit(1); }
+  if (mode === 'fallback' && provider === 'volcengine-plan') { console.error('503 overloaded'); process.exit(1); }
+  if (mode === 'stderr-secret') { console.error('fatal sentinel-stderr-secret'); process.exit(1); }
+  if (mode.startsWith('auth')) { console.error('401 invalid api key'); process.exit(1); }
+  mkdirSync(path.join(process.cwd(), 'src'), { recursive: true });
+  writeFileSync(path.join(process.cwd(), 'src', 'generated.js'), 'export const generated = true;\\n');
+  console.log(JSON.stringify({ type: 'session', version: 3, id: 'fake', cwd: process.cwd() }));
+  console.log(JSON.stringify({ type: 'message_end', message: { role: 'assistant', provider, model: modelName, stopReason: 'stop', content: [{ type: 'text', text: 'implemented' }], usage: { input: 100, output: 20, cacheRead: 40, cacheWrite: 0, totalTokens: 160, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } } } }));
+  console.log(JSON.stringify({ type: 'agent_end', messages: [] }));
+}
+let prompt = '';
+process.stdin.setEncoding('utf8');
+process.stdin.on('data', (chunk) => { prompt += chunk; });
+process.stdin.on('end', () => { writeFileSync(path.join(process.env.HOME, 'prompt.txt'), prompt); execute(); });
 `;
 }
 
-async function preparedFixture(mode = 'success') {
+async function preparedFixture(mode = 'success', { defaultRetryDelay = false, verificationEnv = {} } = {}) {
   const home = await makeTempDir('pi-run-home-');
   const repositoryRoot = await initGitRepo(path.join(home, 'source'));
   const paths = resolveWorkerPaths({}, home);
   await installDefaultConfiguration({ paths });
   const config = JSON.parse(await readFile(paths.configFile, 'utf8'));
-  config.retryDelaysMs = [0];
+  if (!defaultRetryDelay) config.retryDelaysMs = [0];
   if (mode === 'fallback' || mode === 'auth-with-fallback') {
     config.profiles.volcengine.fallbackProfiles = ['backup'];
     config.profiles.backup = {
@@ -67,7 +74,7 @@ async function preparedFixture(mode = 'success') {
     goal: 'Create the generated module required by the fixture', allowedPaths: ['src/**', 'tests/**'],
     forbiddenPaths: ['.env*', '.git/**'], constraints: ['Do not modify repository metadata'],
     acceptanceCriteria: ['src/generated.js exports generated=true'],
-    verification: [{ argv: [process.execPath, '-e', 'process.exit(0)'], timeoutSeconds: 10, env: {} }],
+    verification: [{ argv: [process.execPath, '-e', 'process.exit(0)'], timeoutSeconds: 10, env: verificationEnv }],
     requiredCapabilities: ['text', 'code', 'tool-use'], risk: 'medium',
   }));
   const env = {
@@ -98,6 +105,20 @@ test('run uses JSON mode, no Bash, no auto-loaded resources, and a sanitized env
   assert.match(await readFile(path.join(runDir, 'pi-events.jsonl'), 'utf8'), /message_end/);
 });
 
+test('verification environment values never reach the Pi prompt or persisted run state', async () => {
+  const secret = 'sentinel-verification-secret';
+  const fixture = await preparedFixture('success', { verificationEnv: { TEST_SECRET: secret } });
+  const result = await runNode(cli, ['run', '--id', fixture.runId], { env: fixture.env });
+  assert.equal(result.code, 0, result.stderr);
+  const runDir = path.join(fixture.paths.stateRoot, 'runs', fixture.runId);
+  const observed = await Promise.all([
+    readFile(path.join(runDir, 'pi-home', 'prompt.txt'), 'utf8'),
+    readFile(path.join(runDir, 'pi-events.jsonl'), 'utf8'),
+    readFile(path.join(runDir, 'state.json'), 'utf8'),
+  ]);
+  for (const value of [result.stdout, result.stderr, ...observed]) assert.ok(!value.includes(secret));
+});
+
 test('transient provider failure retries once and then succeeds', async () => {
   const fixture = await preparedFixture('transient-once');
   const result = await runNode(cli, ['run', '--id', fixture.runId], { env: fixture.env });
@@ -106,8 +127,8 @@ test('transient provider failure retries once and then succeeds', async () => {
   assert.equal(count, '2');
 });
 
-test('exhausted transient retries use at most one configured fallback', async () => {
-  const fixture = await preparedFixture('fallback');
+test('default retry budget makes exactly one primary retry before one fallback', async () => {
+  const fixture = await preparedFixture('fallback', { defaultRetryDelay: true });
   const result = await runNode(cli, ['run', '--id', fixture.runId], { env: fixture.env });
   assert.equal(result.code, 0, result.stderr);
   const payload = JSON.parse(result.stdout);
@@ -118,6 +139,18 @@ test('exhausted transient retries use at most one configured fallback', async ()
   const envNames = JSON.parse(await readFile(path.join(fixture.paths.stateRoot, 'runs', fixture.runId, 'pi-home', 'env.json'), 'utf8'));
   assert.ok(envNames.includes('BACKUP_API_KEY'));
   assert.ok(!envNames.includes('VOLCENGINE_API_KEY'));
+});
+
+test('Pi stderr diagnostics are not persisted or returned', async () => {
+  const secret = 'sentinel-stderr-secret';
+  const fixture = await preparedFixture('stderr-secret');
+  const result = await runNode(cli, ['run', '--id', fixture.runId], { env: fixture.env });
+  assert.equal(result.code, 1);
+  const runDir = path.join(fixture.paths.stateRoot, 'runs', fixture.runId);
+  const state = await readFile(path.join(runDir, 'state.json'), 'utf8');
+  const events = await readFile(path.join(runDir, 'pi-events.jsonl'), 'utf8');
+  for (const value of [result.stdout, result.stderr, state, events]) assert.ok(!value.includes(secret));
+  assert.match(state, /PI_FAILED/);
 });
 
 test('authentication failure stops immediately and blocks the run', async () => {
