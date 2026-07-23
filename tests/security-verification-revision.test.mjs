@@ -82,6 +82,46 @@ test('verification failure is reviewable rather than silently approved', async (
   assert.equal(state.status, 'reviewing');
 });
 
+test('truncated verification output fails closed and cannot be approved', async () => {
+  const item = await fixture();
+  await forceVerifying(item);
+  await writeFile(path.join(item.worktree, 'src', 'result.js'), 'export const value = 42;\n');
+  const taskPath = path.join(item.paths.stateRoot, 'runs', item.runId, 'task.json');
+  const task = JSON.parse(await readFile(taskPath, 'utf8'));
+  task.verification = [{ argv: [process.execPath, '-e', "process.stdout.write('x'.repeat(65))"], timeoutSeconds: 10, env: { CI: '1' } }];
+  await writeFile(taskPath, `${JSON.stringify(task, null, 2)}\n`);
+  const config = JSON.parse(await readFile(item.paths.configFile, 'utf8'));
+  config.limits.maxCapturedCharsPerStream = 64;
+  await writeFile(item.paths.configFile, `${JSON.stringify(config, null, 2)}\n`);
+  const result = await runNode(cli, ['verify', '--id', item.runId], { env: item.env });
+  assert.equal(result.code, 1);
+  assert.equal(JSON.parse(result.stderr).error.code, 'VERIFICATION_OUTPUT_TRUNCATED');
+  const evidence = JSON.parse(await readFile(path.join(item.paths.stateRoot, 'runs', item.runId, 'verification.json'), 'utf8'));
+  assert.equal(evidence.commands[0].stdoutTruncated, true);
+  assert.equal(evidence.commands[0].passed, false);
+  const state = JSON.parse(await readFile(path.join(item.paths.stateRoot, 'runs', item.runId, 'state.json'), 'utf8'));
+  assert.equal(state.status, 'blocked');
+});
+
+test('oversized worker diff blocks with persisted DIFF_TOO_LARGE evidence', async () => {
+  const item = await fixture();
+  await forceVerifying(item);
+  const config = JSON.parse(await readFile(item.paths.configFile, 'utf8'));
+  config.limits.maxDiffBytes = 64;
+  await writeFile(item.paths.configFile, `${JSON.stringify(config, null, 2)}\n`);
+  await writeFile(path.join(item.worktree, 'src', 'huge.js'), `export const payload = '${'x'.repeat(128)}';\n`);
+  const result = await runNode(cli, ['verify', '--id', item.runId], { env: item.env });
+  assert.equal(result.code, 1);
+  const error = JSON.parse(result.stderr);
+  assert.equal(error.error.code, 'SECURITY_BLOCKED');
+  assert.ok(error.error.details.issues.some((issue) => issue.code === 'DIFF_TOO_LARGE'));
+  const evidence = JSON.parse(await readFile(path.join(item.paths.stateRoot, 'runs', item.runId, 'verification.json'), 'utf8'));
+  assert.equal(evidence.passed, false);
+  assert.ok(evidence.security.issues.some((issue) => issue.code === 'DIFF_TOO_LARGE'));
+  const state = JSON.parse(await readFile(path.join(item.paths.stateRoot, 'runs', item.runId, 'state.json'), 'utf8'));
+  assert.equal(state.status, 'blocked');
+});
+
 test('a failed first verification can be revised once and then pass', async () => {
   const item = await fixture({ piMode: 'repair-on-second' });
   const run = await runNode(cli, ['run', '--id', item.runId], { env: item.env });
