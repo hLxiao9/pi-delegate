@@ -2,8 +2,10 @@
 import { main } from '../lib/cli.mjs';
 import { doctorCommand } from '../lib/doctor.mjs';
 import { prepareCommand } from '../lib/git-worker.mjs';
+import { runCommand } from '../lib/pi-runner.mjs';
 
 process.exitCode = await main(process.argv.slice(2), process, {
   doctor: doctorCommand,
   prepare: prepareCommand,
+  run: runCommand,
 });
