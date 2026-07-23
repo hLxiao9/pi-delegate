@@ -9,7 +9,8 @@
     "piTimeoutSeconds": 1800,
     "maxChangedFiles": 80,
     "maxDeletedLineRatio": 0.35,
-    "maxCapturedCharsPerStream": 12000
+    "maxCapturedCharsPerStream": 12000,
+    "maxDiffBytes": 2000000
   },
   "verificationEnvAllowlist": ["CI", "NODE_ENV", "PYTHONPATH", "RUST_BACKTRACE"],
   "alwaysForbiddenPaths": [".git/**", ".env", ".env.*", "**/.env", "**/.env.*", "**/*credential*", "**/*secret*"],
