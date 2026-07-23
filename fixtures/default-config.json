@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "minimumPiVersion": "0.80.10",
+  "defaultProfile": "volcengine",
+  "maxRevisionRounds": 2,
+  "autoIntegrateCleanSource": true,
+  "retryDelaysMs": [1000, 3000],
+  "limits": {
+    "piTimeoutSeconds": 1800,
+    "maxChangedFiles": 80,
+    "maxDeletedLineRatio": 0.35,
+    "maxCapturedCharsPerStream": 12000
+  },
+  "verificationEnvAllowlist": ["CI", "NODE_ENV", "PYTHONPATH", "RUST_BACKTRACE"],
+  "alwaysForbiddenPaths": [".git/**", ".env", ".env.*", "**/.env", "**/.env.*", "**/*credential*", "**/*secret*"],
+  "codexRateCard": {
+    "model": "gpt-5.6-sol",
+    "effectiveDate": "2026-07-23",
+    "source": "https://help.openai.com/en/articles/20001106-codex-rate-card",
+    "creditsPerMillion": {
+      "nonCachedInput": 125,
+      "cachedInput": 12.5,
+      "output": 750
+    }
+  },
+  "codexSubscription": {
+    "plan": "plus",
+    "monthlyUsd": 20
+  },
+  "profiles": {
+    "volcengine": {
+      "provider": "volcengine-plan",
+      "model": "ark-code-latest",
+      "thinking": "high",
+      "apiKeyEnv": "VOLCENGINE_API_KEY",
+      "capabilities": ["text", "code", "tool-use"],
+      "fallbackProfiles": [],
+      "monthlyPlan": {
+        "currency": "CNY",
+        "amount": 40
+      }
+    }
+  }
+}

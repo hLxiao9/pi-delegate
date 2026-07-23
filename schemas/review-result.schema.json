@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.pi-worker.invalid/review-result.schema.json",
+  "title": "Sol Review Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "verdict", "findings", "verificationGaps", "summary"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "verdict": { "enum": ["approve", "revise"] },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["priority", "file", "line", "problem", "evidence", "requiredChange"],
+        "properties": {
+          "priority": { "enum": ["P0", "P1", "P2", "P3"] },
+          "file": { "type": "string", "minLength": 1 },
+          "line": { "type": ["integer", "null"], "minimum": 1 },
+          "problem": { "type": "string", "minLength": 1 },
+          "evidence": { "type": "string", "minLength": 1 },
+          "requiredChange": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "verificationGaps": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 4000 }
+  }
+}

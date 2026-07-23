@@ -1,0 +1,21 @@
+{
+  "providers": {
+    "volcengine-plan": {
+      "baseUrl": "https://ark.cn-beijing.volces.com/api/coding/v3",
+      "api": "openai-completions",
+      "apiKey": "$VOLCENGINE_API_KEY",
+      "authHeader": true,
+      "models": [
+        {
+          "id": "ark-code-latest",
+          "name": "Volcengine Coding Plan",
+          "reasoning": false,
+          "input": ["text"],
+          "contextWindow": 128000,
+          "maxTokens": 32768,
+          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 }
+        }
+      ]
+    }
+  }
+}
