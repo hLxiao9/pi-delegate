@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { installDefaultConfiguration, resolveWorkerPaths } from '../lib/config.mjs';
@@ -89,5 +89,51 @@ test('prepare rejects a stale base revision before creating a branch', async () 
   assert.equal(result.code, 1);
   assert.equal(JSON.parse(result.stderr).error.code, 'BASE_REVISION_MISMATCH');
   const branches = (await runProcess('git', ['branch', '--list', 'pi-worker/*'], { cwd: fixture.repositoryRoot })).stdout;
+  assert.equal(branches.trim(), '');
+});
+
+async function assertPrepareRejectsEscape(fixture) {
+  const beforeStatus = (await runProcess('git', ['status', '--porcelain=v1', '-z'], { cwd: fixture.repositoryRoot })).stdout;
+  const result = await runNode(cli, ['prepare', '--task', fixture.taskFile], { env: fixture.env });
+  assert.equal(result.code, 1);
+  assert.equal(JSON.parse(result.stderr).error.code, 'SYMLINK_ESCAPE');
+  const afterStatus = (await runProcess('git', ['status', '--porcelain=v1', '-z'], { cwd: fixture.repositoryRoot })).stdout;
+  assert.equal(afterStatus, beforeStatus);
+  const branches = (await runProcess('git', ['branch', '--list', `pi-worker/${fixture.runId}`], { cwd: fixture.repositoryRoot })).stdout;
+  assert.equal(branches.trim(), '');
+  const worktrees = (await runProcess('git', ['worktree', 'list', '--porcelain'], { cwd: fixture.repositoryRoot })).stdout;
+  assert.doesNotMatch(worktrees, new RegExp(fixture.runId));
+}
+
+test('prepare rejects an untracked absolute symlink that escapes the worker worktree', async () => {
+  const fixture = await setup();
+  await symlink('/private/tmp/pi-worker-outside', path.join(fixture.repositoryRoot, 'escape-absolute'));
+  await assertPrepareRejectsEscape(fixture);
+});
+
+test('prepare rejects a tracked relative symlink that escapes the worker worktree', async () => {
+  const fixture = await setup();
+  await symlink('../../pi-worker-outside', path.join(fixture.repositoryRoot, 'escape-relative'));
+  await runProcess('git', ['add', 'escape-relative'], { cwd: fixture.repositoryRoot });
+  await runProcess('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgSign=false', 'commit', '-m', 'test: add escaping link'], { cwd: fixture.repositoryRoot });
+  fixture.head = (await runProcess('git', ['rev-parse', 'HEAD'], { cwd: fixture.repositoryRoot })).stdout.trim();
+  const task = JSON.parse(await readFile(fixture.taskFile, 'utf8'));
+  task.baseRevision = fixture.head;
+  await writeFile(fixture.taskFile, JSON.stringify(task));
+  await assertPrepareRejectsEscape(fixture);
+});
+
+test('prepare fails closed when a source fingerprint output would be truncated', async () => {
+  const fixture = await setup();
+  const directory = path.join(fixture.repositoryRoot, 'many-untracked');
+  await mkdir(directory);
+  await Promise.all(Array.from({ length: 2_200 }, (_, index) => writeFile(
+    path.join(directory, `${String(index).padStart(4, '0')}-${'x'.repeat(100)}.txt`),
+    'fixture\n',
+  )));
+  const result = await runNode(cli, ['prepare', '--task', fixture.taskFile], { env: fixture.env });
+  assert.equal(result.code, 1);
+  assert.equal(JSON.parse(result.stderr).error.code, 'FINGERPRINT_INCOMPLETE');
+  const branches = (await runProcess('git', ['branch', '--list', `pi-worker/${fixture.runId}`], { cwd: fixture.repositoryRoot })).stdout;
   assert.equal(branches.trim(), '');
 });
