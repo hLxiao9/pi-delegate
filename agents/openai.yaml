@@ -1,0 +1,6 @@
+interface:
+  display_name: "Pi Delegate"
+  short_description: "Delegate code work through a reviewed Pi worker"
+  default_prompt: "Use $pi-delegate to implement this coding task through the reviewed Pi worker."
+policy:
+  allow_implicit_invocation: false

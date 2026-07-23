@@ -1,0 +1,17 @@
+{
+  "name": "pi-delegate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "bin": {
+    "pi-worker": "./scripts/pi-worker.mjs"
+  },
+  "scripts": {
+    "test": "node --test --test-concurrency=1 tests/*.test.mjs",
+    "check:syntax": "node --check scripts/pi-worker.mjs && node --check scripts/install-config.mjs",
+    "check": "npm run check:syntax && npm test"
+  }
+}
