@@ -197,6 +197,84 @@
         "currency": "USD",
         "amount": 0
       }
+    },
+    "kimi-cli": {
+      "adapter": "kimi",
+      "provider": "kimi",
+      "model": "kimi-for-coding",
+      "apiKeyEnv": "KIMI_API_KEY",
+      "capabilities": [
+        "text",
+        "code",
+        "tool-use"
+      ],
+      "fallbackProfiles": [],
+      "costTier": "standard",
+      "monthlyPlan": {
+        "currency": "CNY",
+        "amount": 0
+      },
+      "strengths": [
+        "refactor",
+        "docs",
+        "backend"
+      ],
+      "modalities": [
+        "text"
+      ],
+      "providerType": "kimi",
+      "baseUrl": "https://api.kimi.com/coding/v1",
+      "maxContextSize": 1048576
+    },
+    "trae-cli": {
+      "adapter": "trae",
+      "provider": "trae",
+      "model": "trae-default",
+      "apiKeyEnv": "TRAE_CLI_TOKEN",
+      "capabilities": [
+        "text",
+        "code",
+        "tool-use"
+      ],
+      "fallbackProfiles": [],
+      "costTier": "premium",
+      "monthlyPlan": {
+        "currency": "CNY",
+        "amount": 0
+      },
+      "strengths": [
+        "frontend",
+        "backend",
+        "systems"
+      ],
+      "modalities": [
+        "text"
+      ]
+    },
+    "qoder-cli": {
+      "adapter": "qoder",
+      "provider": "qoder",
+      "model": "qoder-default",
+      "apiKeyEnv": "QODERCN_PERSONAL_ACCESS_TOKEN",
+      "capabilities": [
+        "text",
+        "code",
+        "tool-use"
+      ],
+      "fallbackProfiles": [],
+      "costTier": "standard",
+      "monthlyPlan": {
+        "currency": "CNY",
+        "amount": 0
+      },
+      "strengths": [
+        "frontend",
+        "backend",
+        "docs"
+      ],
+      "modalities": [
+        "text"
+      ]
     }
   },
   "maxConcurrentRuns": 4

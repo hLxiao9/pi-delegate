@@ -79,18 +79,18 @@ test('buildCohort tolerates malformed metrics', async () => {
   assert.equal(cohort.recommendation, 'collect-more-data');
 });
 
-// M1: medianSavingRate null 时推荐 collect-more-data 而非 disable
-test('buildCohort recommends collect-more-data when medianSavingRate is null', async () => {
+// M1: 当所有 run 都没有 saving rate 数据(如使用 Kimi/Trae adapter 无 usage)时,推荐 no-usage-data-available
+test('buildCohort recommends no-usage-data-available when all runs lack saving rate', async () => {
   const home = await makeTempDir('cohort-null-');
   const paths = resolveWorkerPaths({}, home);
   const runsRoot = path.join(paths.stateRoot, 'runs');
   for (let i = 0; i < 12; i++) {
     await mkdir(path.join(runsRoot, `run${i}`), { recursive: true });
-    // 有 quality 但 counterfactual.estimatedCreditSavingRate 缺失
+    // 有 quality 但 counterfactual.estimatedCreditSavingRate 缺失(非流式 adapter 场景)
     await writeFile(path.join(runsRoot, `run${i}`, 'metrics.json'), JSON.stringify({ schemaVersion: 1, runId: `run${i}`, generatedAt: new Date(2026, 0, i + 1).toISOString(), quality: { committed: true, finalVerificationPassed: true, unresolvedBlockingFindings: 0, revisionRounds: 0 } }));
   }
   const cohort = await buildCohort(paths);
-  assert.equal(cohort.recommendation, 'collect-more-data');
+  assert.equal(cohort.recommendation, 'no-usage-data-available');
 });
 
 // L5: runId 含 .. 或 .lock 被拒

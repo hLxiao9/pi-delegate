@@ -1,6 +1,6 @@
 ---
 name: pi-delegate
-description: Use when a user explicitly invokes $pi-delegate, asks the parent agent to delegate a bounded code implementation to Pi CLI or a cheaper coding model, or requests unattended coding completion across projects.
+description: Use when a user explicitly invokes $pi-delegate, asks the parent agent to delegate a bounded code implementation to Pi CLI / Kimi Code CLI / Trae CLI / Qoder CLI or a cheaper coding model, or requests unattended coding completion across projects. Supports multiple CLI backends via the adapter system (pi/kimi/trae/qoder).
 ---
 
 # Pi Delegate

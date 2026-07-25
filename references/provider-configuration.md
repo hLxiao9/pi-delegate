@@ -138,3 +138,107 @@ node /Users/xiao9/.agents/skills/pi-delegate/scripts/pi-worker.mjs doctor --prof
 ```
 
 Visual and image tasks are delegated to Pi only when a profile advertising the matching `modalities` is configured. If no such profile exists, the selector returns null and the parent agent should report a setup blocker (or handle the task directly). The `chatgpt-image-generations` flag on `report` remains available for tracking image generations routed through ChatGPT web outside the Pi delegation path.
+
+---
+
+## Multi-CLI Adapter Support (v2)
+
+pi-delegate now supports multiple CLI backends via the **adapter** system. Each profile can specify `adapter` to route to a different CLI:
+
+| Adapter | CLI Binary | Auth Method | Streaming | Token Usage | Model List |
+|---|---|---|---|---|---|
+| `pi` (default) | `pi` | env var + models.json | NDJSON stream | yes | `--list-models` |
+| `kimi` | `kimi` | config.toml (env var value) | text | no | no |
+| `trae` | `traecli` | OAuth (manual login) | JSON | no | no |
+| `qoder` | `qoderclicn` | `QODERCN_PERSONAL_ACCESS_TOKEN` env var | JSON | no | no |
+
+### Adapter Selection
+
+Profile-level `adapter` field (optional, defaults to `pi`):
+
+```json
+{
+  "kimi-cli": {
+    "adapter": "kimi",
+    "provider": "kimi",
+    "model": "kimi-for-coding",
+    "apiKeyEnv": "KIMI_API_KEY",
+    "providerType": "kimi",
+    "baseUrl": "https://api.kimi.com/coding/v1",
+    "maxContextSize": 1048576,
+    "costTier": "standard",
+    "strengths": ["refactor", "docs", "backend"],
+    "modalities": ["text"],
+    "capabilities": ["text", "code", "tool-use"],
+    "fallbackProfiles": [],
+    "monthlyPlan": { "currency": "CNY", "amount": 0 }
+  }
+}
+```
+
+### CLI Binary Resolution
+
+Priority: `PI_WORKER_<ADAPTER>_BIN` env var > adapter `defaultBin`.
+
+```bash
+# Override binary path
+export PI_WORKER_KIMI_BIN=/usr/local/bin/kimi
+export PI_WORKER_TRAE_BIN=/opt/homebrew/bin/traecli
+export PI_WORKER_QODER_BIN=/usr/local/bin/qoderclicn
+```
+
+### Adapter-Specific Notes
+
+#### Pi (default)
+- NDJSON streaming with `message_end` events
+- Full token usage tracking (input/output/cached/reasoning)
+- Model availability checked via `--list-models`
+- Isolated `~/.pi/agent/models.json` per run
+
+#### Kimi
+- Non-interactive `-p` mode, text output
+- **No token usage** — metrics gracefully degrade (saving rate = null, recommendation = `no-usage-data-available`)
+- Generates isolated `~/.kimi-code/config.toml` per run with only the selected provider
+- API key from env var is written into `config.toml` (Kimi requires this)
+- No `--list-models` command — model availability checked at runtime only
+- Extra profile fields: `providerType`, `baseUrl`, `maxContextSize`
+
+#### Trae
+- Non-interactive `-p --json --yolo` mode, JSON array output
+- **OAuth authentication** — user must run `traecli` interactively once to complete enterprise login
+- Doctor reports `credential.type: oauth` with login hint instead of checking env var
+- No config file generation (OAuth token in system keychain)
+- `--allowed-tool` restricts tool set; `--worktree` is NOT used (we provide our own git worktree isolation)
+- No token usage
+
+#### Qoder
+- Non-interactive `-p --output-format=json --yolo` mode, JSON output
+- **Environment variable auth**: `QODERCN_PERSONAL_ACCESS_TOKEN`
+- Supports `--allowed-tools` and `--max-turns`
+- Config dir: `~/.qoder-cn/` (created per run, no config file needed — token via env var)
+- No token usage (may be available via `stream-json` format in future)
+
+### Metrics Degradation
+
+When adapter `supportsTokenUsage = false` (Kimi/Trae/Qoder):
+- `metrics.pi.usage` = `null`
+- `metrics.pi.usageAvailable` = `false`
+- `metrics.counterfactual.estimatedCreditSavingRate` = `null`
+- `metrics.counterfactual.label` = `unavailable-no-usage`
+- Cohort recommendation becomes `no-usage-data-available` when all recent runs lack usage
+
+### Fallback Across Adapters
+
+Fallback profiles can use different adapters. For example, primary `kimi-cli` (Kimi adapter) with fallback to `deepseek` (Pi adapter):
+
+```json
+{
+  "kimi-cli": {
+    "adapter": "kimi",
+    "fallbackProfiles": ["deepseek"],
+    ...
+  }
+}
+```
+
+The runner resolves the adapter per-profile, so cross-adapter fallback works seamlessly.
