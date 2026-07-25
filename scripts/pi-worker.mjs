@@ -9,7 +9,20 @@ import { reportCommand } from '../lib/report.mjs';
 import { selfReviewCommand } from '../lib/self-review.mjs';
 import { serveCommand } from '../lib/server.mjs';
 import { approveCommand } from '../lib/review.mjs';
+import { recoverCommand } from '../lib/recovery.mjs';
 import { verifyCommand } from '../lib/verification.mjs';
+import { abortActiveProcesses } from '../lib/process.mjs';
+
+let lastSignal = null;
+const signalSensitiveCommands = new Set(['run', 'revise', 'verify', 'self-review']);
+if (signalSensitiveCommands.has(process.argv[2])) {
+  for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+    process.on(signal, () => {
+      lastSignal = signal;
+      abortActiveProcesses(signal);
+    });
+  }
+}
 
 process.exitCode = await main(process.argv.slice(2), process, {
   doctor: doctorCommand,
@@ -18,6 +31,7 @@ process.exitCode = await main(process.argv.slice(2), process, {
   revise: reviseCommand,
   verify: verifyCommand,
   'self-review': selfReviewCommand,
+  recover: recoverCommand,
   approve: approveCommand,
   integrate: integrateCommand,
   report: reportCommand,
@@ -27,3 +41,8 @@ process.exitCode = await main(process.argv.slice(2), process, {
   dashboard: dashboardCommand,
   serve: serveCommand,
 });
+
+// If a signal arrived while no child process was active, preserve the usual
+// shell exit convention after the current command has finished its atomic
+// state update.
+if (lastSignal && process.exitCode === 0) process.exitCode = lastSignal === 'SIGINT' ? 130 : 143;

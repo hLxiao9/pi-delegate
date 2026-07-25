@@ -61,7 +61,7 @@ Use `/Users/xiao9/.agents/skills/pi-delegate/scripts/pi-worker.mjs`; run it with
 7. When every gate passes, write `verdict: approve`. Call `approve` immediately without asking the user, then `integrate`. A dirty or changed source must remain on the worker branch and report `blocked`; never stash, reset, checkout, or mix user changes.
 8. For every created run, call `report`; pass `--chatgpt-image-generations N` when the same user task used ChatGPT web for images. If `doctor` fails before `prepare`, report that setup blocker directly because no run exists. Call `cleanup` only after successful integration and report persistence. Preserve failed/blocked worktrees and logs.
 
-If a parent thread resumes after interruption, read the persisted `state.json` and reissue only the command corresponding to its current state. `run` and `revise` consume their Pi-turn receipt or terminal event evidence; never restart the entire workflow or recreate an existing run.
+If a parent thread resumes after interruption, read the persisted `state.json` and reissue only the command corresponding to its current state. `run` and `revise` consume their Pi-turn receipt or terminal event evidence; never restart the entire workflow or recreate an existing run. If an active phase was interrupted and the lock owner is gone, call `pi-worker recover --id <run-id>` first: a partial worktree is sent to `verify`, while an empty worktree is sent back to `run`/`revise`. A live lock is never stolen.
 
 ## Self-review (parent token saver)
 

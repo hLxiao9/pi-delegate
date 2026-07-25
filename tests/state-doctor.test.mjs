@@ -3,8 +3,8 @@ import { access, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { installDefaultConfiguration, resolveWorkerPaths } from '../lib/config.mjs';
-import { runProcess } from '../lib/process.mjs';
-import { createRun, loadRun, transition, updateRun } from '../lib/state.mjs';
+import { abortActiveProcesses, runProcess } from '../lib/process.mjs';
+import { createRun, loadRun, transition, updateRun, withRunLock } from '../lib/state.mjs';
 import { makeTempDir, runNode, writeExecutable } from './helpers.mjs';
 
 const root = path.resolve(new URL('..', import.meta.url).pathname);
@@ -49,6 +49,15 @@ test('process runner times out and reports a terminated process', async () => {
   assert.notEqual(result.code, 0);
 });
 
+test('aborting active processes terminates the worker and records an interruption', async () => {
+  const running = runProcess(process.execPath, ['-e', 'setInterval(() => {}, 1000)']);
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  assert.equal(abortActiveProcesses('SIGTERM'), 1);
+  const result = await running;
+  assert.equal(result.interrupted, true);
+  assert.notEqual(result.code, 0);
+});
+
 test('timeout terminates descendants in the spawned process group', async () => {
   const home = await makeTempDir('pi-process-tree-');
   const heartbeat = path.join(home, 'heartbeat');
@@ -59,6 +68,17 @@ test('timeout terminates descendants in the spawned process group', async () => 
   const firstSize = (await stat(heartbeat)).size;
   await new Promise((resolve) => setTimeout(resolve, 150));
   assert.equal((await stat(heartbeat)).size, firstSize);
+});
+
+test('withRunLock reclaims a lock whose owner process is gone', async () => {
+  const { paths } = await fixture();
+  const runId = 'stale-lock-test';
+  const initial = { schemaVersion: 1, runId, status: 'prepared', revisionRound: 0, transitions: [] };
+  const files = await createRun(paths, initial, { schemaVersion: 1, runId });
+  await writeFile(files.lock, `${JSON.stringify({ pid: 99999999, startedAt: new Date().toISOString() })}\n`);
+  const result = await withRunLock(paths, runId, async () => 'recovered');
+  assert.equal(result, 'recovered');
+  await assert.rejects(access(files.lock), { code: 'ENOENT' });
 });
 
 test('doctor validates Pi, model, key, and config without creating a run', async () => {

@@ -9,6 +9,7 @@ Keep architecture, acceptance criteria, independent verification, review, and co
 ## Features
 
 - **Closed-loop delegation**: `doctor → prepare → run → verify → approve → integrate → report → cleanup`
+- **Crash-safe recovery**: process-group timeouts, SIGINT/SIGTERM cleanup, stale-lock reclamation, and `recover`
 - **Multi-parent dispatch**: tracks caller (`trae`, `codex`, `claude-code`, `cursor`, `pi-recursive`, `cli`) via env vars
 - **Automatic model selection by difficulty**: cheap / standard / premium profiles
 - **Hard gates**: wrapper verification, diff-hash integrity, security scan, zero unresolved P0–P2 findings
@@ -72,6 +73,19 @@ pi-worker report --id <run-id>
 pi-worker cleanup --id <run-id>
 ```
 
+If the terminal or parent process is interrupted, inspect the persisted run and
+re-enter the same closed loop instead of creating a new run:
+
+```bash
+pi-worker inspect --id <run-id>
+pi-worker recover --id <run-id>
+```
+
+`recover` only reopens an interrupted or timed-out run. If the worker left a
+partial diff, it sends the run to `verify`; if no diff exists, it sends it back
+to `run`. A live lock is never stolen; only a lock whose owner process is gone
+is reclaimed.
+
 See [`SKILL.md`](./SKILL.md) for the full parent-agent workflow, hard gates, and routing rules.
 
 ## Monitoring
@@ -82,6 +96,7 @@ Every run is persisted under `~/.local/state/pi-worker/runs/<run-id>/` (`state.j
 |---|---|
 | `pi-worker list [--status <s>] [--caller <c>]` | JSON array of runs |
 | `pi-worker inspect --id <run-id>` | Full state + metrics + verification + review + Pi usage |
+| `pi-worker recover --id <run-id>` | Reopen an interrupted/timed-out run safely |
 | `pi-worker dashboard [--output <file>]` | Static single-page HTML snapshot |
 | `pi-worker serve [--port <port>] [--no-open]` | **Live** HTTP dashboard with refresh button |
 

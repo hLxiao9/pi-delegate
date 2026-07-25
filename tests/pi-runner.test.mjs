@@ -26,6 +26,7 @@ function execute() {
   let count = 0;
   try { count = Number(readFileSync(counterFile, 'utf8')); } catch {}
   writeFileSync(counterFile, String(count + 1));
+  if (mode === 'timeout') { setInterval(() => {}, 1000); return; }
   if (mode === 'transient-once' && count === 0) { console.error('429 rate limit'); process.exit(1); }
   if (mode === 'fallback' && provider === 'volcengine-plan') { console.error('503 overloaded'); process.exit(1); }
   if (mode === 'stderr-secret') { console.error('fatal sentinel-stderr-secret'); process.exit(1); }
@@ -50,6 +51,7 @@ async function preparedFixture(mode = 'success', { defaultRetryDelay = false, ve
   await installDefaultConfiguration({ paths });
   const config = JSON.parse(await readFile(paths.configFile, 'utf8'));
   if (!defaultRetryDelay) config.retryDelaysMs = [0];
+  if (mode === 'timeout') config.limits.piTimeoutSeconds = 1;
   if (mode === 'fallback' || mode === 'auth-with-fallback') {
     config.profiles.volcengine.fallbackProfiles = ['backup'];
     config.profiles.backup = {
@@ -161,4 +163,18 @@ test('authentication failure stops immediately and blocks the run', async () => 
   assert.equal(state.status, 'blocked');
   const count = await readFile(path.join(fixture.paths.stateRoot, 'runs', fixture.runId, 'pi-home', 'counter'), 'utf8');
   assert.equal(count, '1');
+});
+
+test('Pi timeout persists a recoverable failure and releases the run lock', async () => {
+  const fixture = await preparedFixture('timeout');
+  const result = await runNode(cli, ['run', '--id', fixture.runId], { env: fixture.env });
+  assert.equal(result.code, 1);
+  const runDir = path.join(fixture.paths.stateRoot, 'runs', fixture.runId);
+  const state = JSON.parse(await readFile(path.join(runDir, 'state.json'), 'utf8'));
+  assert.equal(state.status, 'failed');
+  assert.equal(state.failure.code, 'PI_TIMEOUT');
+  await assert.rejects(readFile(path.join(runDir, '.lock')), { code: 'ENOENT' });
+  const recovered = await runNode(cli, ['recover', '--id', fixture.runId], { env: fixture.env });
+  assert.equal(recovered.code, 0, recovered.stderr);
+  assert.equal(JSON.parse(recovered.stdout).status, 'prepared');
 });
