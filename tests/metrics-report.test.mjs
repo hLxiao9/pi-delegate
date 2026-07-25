@@ -4,6 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { snapshotCodexUsage, usageDelta } from '../lib/codex-usage.mjs';
 import { priceAtSolRate } from '../lib/metrics.mjs';
+import { transition, updateRun } from '../lib/state.mjs';
 import { runNode } from './helpers.mjs';
 import { cli, createReviewedFixture } from './workflow-fixture.mjs';
 
@@ -83,4 +84,18 @@ test('report distinguishes Plus fixed cost, external plan amortization, and esti
   assert.equal(cleaned.code, 0, cleaned.stderr);
   await assert.rejects(access(item.worktree), { code: 'ENOENT' });
   await access(path.join(item.paths.stateRoot, 'runs', item.runId, 'state.json'));
+});
+
+test('report explains blocked security guardrails without exposing secret values', async () => {
+  const item = await createReviewedFixture();
+  await updateRun(item.paths, item.runId, (state) => transition(state, 'blocked', {
+    security: { passed: false, issues: [{ code: 'SECRET_DETECTED', message: 'Added lines contain a probable credential' }] },
+  }, 'security guardrail'));
+  const reported = await runNode(cli, ['report', '--id', item.runId], { env: item.env });
+  assert.equal(reported.code, 0, reported.stderr);
+  const payload = JSON.parse(reported.stdout);
+  const report = await readFile(payload.reportFile, 'utf8');
+  assert.match(report, /阻断原因：security guardrail/);
+  assert.match(report, /安全问题：SECRET_DETECTED/);
+  assert.doesNotMatch(report, /probable credential/);
 });

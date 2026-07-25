@@ -189,3 +189,15 @@ test('a structured revise turn returns to verifying and is limited to two rounds
   assert.equal(finalState.implementationCommit, null);
   assert.equal((await runProcess('git', ['rev-list', '--count', `${finalState.workerBaseRevision}..HEAD`], { cwd: item.worktree })).stdout.trim(), '0');
 });
+
+test('test credential placeholders do not trigger the generic secret guardrail', async () => {
+  const item = await fixture();
+  await forceVerifying(item);
+  await writeFile(path.join(item.worktree, 'src', 'fixtures.js'), [
+    "export const fixtures = { apiKey: 'super-secret', token: 'should-not-leak', clientSecret: 'test-key-not-real' };",
+  ].join('\n'));
+  await writeFile(path.join(item.worktree, 'src', 'result.js'), 'export const value = 42;\n');
+  const result = await runNode(cli, ['verify', '--id', item.runId], { env: item.env });
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).passed, true);
+});
