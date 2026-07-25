@@ -1,6 +1,4 @@
-.DS_Store
+lib/.write-test
 node_modules/
-coverage/
 *.log
-.env
-.env.*
+.DS_Store

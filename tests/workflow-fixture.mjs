@@ -33,6 +33,10 @@ export async function createReviewedFixture({ dirty = false } = {}) {
   })}\n`);
   const paths = resolveWorkerPaths({}, home);
   await installDefaultConfiguration({ paths });
+  // workflow-fixture drives prepare/run/verify/approve directly; skip the self-review stage so verify -> reviewing.
+  const cfg = JSON.parse(await readFile(paths.configFile, 'utf8'));
+  cfg.selfReview = { enabled: false };
+  await writeFile(paths.configFile, JSON.stringify(cfg));
   const pi = path.join(home, 'bin', 'pi');
   await writeExecutable(pi, `#!/usr/bin/env node
 const { mkdirSync, writeFileSync } = require('node:fs');

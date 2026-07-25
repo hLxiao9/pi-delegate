@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
-import { validateReviewResult, validateTaskContract, assertDelegableCapabilities } from '../lib/contracts.mjs';
+import { validateReviewResult, validateTaskContract, assertDelegableCapabilities, validateProfileFields } from '../lib/contracts.mjs';
 import { installDefaultConfiguration, resolveWorkerPaths } from '../lib/config.mjs';
 import { makeTempDir } from './helpers.mjs';
 
@@ -37,11 +37,34 @@ test('task and approve review contracts normalize valid inputs', () => {
   assert.equal(review.verdict, 'approve');
 });
 
-test('visual requirements are rejected even when a profile advertises vision', () => {
+test('vision-input is delegated when profile has vision capability + modality', () => {
   const task = validTask('/tmp/repo');
   task.requiredCapabilities.push('vision-input');
+  // profile 声明 vision-input capability 且 modalities 含 vision → 通过
+  assertDelegableCapabilities(task, { capabilities: ['text', 'code', 'tool-use', 'vision-input'], modalities: ['text', 'vision'] });
+});
+
+test('vision-input is rejected when profile lacks vision modality', () => {
+  const task = validTask('/tmp/repo');
+  task.requiredCapabilities.push('vision-input');
+  // profile 有 vision-input capability 但 modalities 不含 vision → 拒绝
   assert.throws(
-    () => assertDelegableCapabilities(task, { capabilities: ['text', 'code', 'tool-use', 'vision-input'] }),
+    () => assertDelegableCapabilities(task, { capabilities: ['text', 'code', 'tool-use', 'vision-input'], modalities: ['text'] }),
+    (error) => error.code === 'CAPABILITY_MISMATCH',
+  );
+});
+
+test('image-output is delegated when profile has image-output capability + modality', () => {
+  const task = validTask('/tmp/repo');
+  task.requiredCapabilities.push('image-output');
+  assertDelegableCapabilities(task, { capabilities: ['text', 'code', 'tool-use', 'image-output'], modalities: ['text', 'image-output'] });
+});
+
+test('image-output is rejected when profile lacks image-output modality', () => {
+  const task = validTask('/tmp/repo');
+  task.requiredCapabilities.push('image-output');
+  assert.throws(
+    () => assertDelegableCapabilities(task, { capabilities: ['text', 'code', 'tool-use', 'image-output'], modalities: ['text'] }),
     (error) => error.code === 'CAPABILITY_MISMATCH',
   );
 });
@@ -102,4 +125,41 @@ test('installer preserves an existing Volcengine provider and adds only missing 
   assert.equal(provider.baseUrl, 'https://user-proxy.example.invalid/v1');
   assert.equal(provider.headers['x-user-route'], 'kept');
   assert.deepEqual(provider.models.map((model) => model.id), ['user-model', 'ark-code-latest']);
+});
+
+test('task contract accepts optional domain field', () => {
+  const task = validTask('/tmp/repo');
+  task.domain = 'frontend';
+  const validated = validateTaskContract(task);
+  assert.equal(validated.domain, 'frontend');
+});
+
+test('task contract rejects unknown domain value', () => {
+  const task = validTask('/tmp/repo');
+  task.domain = 'mobile'; // not in ALLOWED_DOMAINS
+  assert.throws(() => validateTaskContract(task), (error) => error.code === 'CONTRACT_INVALID');
+});
+
+test('task contract without domain defaults to null', () => {
+  const validated = validateTaskContract(validTask('/tmp/repo'));
+  assert.equal(validated.domain, null);
+});
+
+test('validateProfileFields accepts valid strengths and modalities', () => {
+  validateProfileFields({ strengths: ['frontend', 'backend'], modalities: ['text', 'vision'] }, 'ok-profile');
+  validateProfileFields({}, 'empty-profile'); // both optional
+});
+
+test('validateProfileFields rejects unknown strengths value', () => {
+  assert.throws(
+    () => validateProfileFields({ strengths: ['frontend', 'mobile'] }, 'bad-profile'),
+    (error) => error.code === 'CONFIG_INVALID',
+  );
+});
+
+test('validateProfileFields rejects unknown modalities value', () => {
+  assert.throws(
+    () => validateProfileFields({ modalities: ['text', 'audio'] }, 'bad-profile'),
+    (error) => error.code === 'CONFIG_INVALID',
+  );
 });

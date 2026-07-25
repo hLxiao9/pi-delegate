@@ -1,7 +1,7 @@
 {
   "name": "pi-delegate",
   "version": "0.1.0",
-  "private": true,
+  "description": "Parent-agent-owned Pi implementation worker: delegate bounded code tasks to Pi CLI with isolation, verification, review, and a live monitoring dashboard.",
   "type": "module",
   "engines": {
     "node": ">=22.19.0"
@@ -9,9 +9,42 @@
   "bin": {
     "pi-worker": "./scripts/pi-worker.mjs"
   },
+  "files": [
+    "scripts/",
+    "lib/",
+    "schemas/",
+    "fixtures/",
+    "references/",
+    "agents/",
+    "SKILL.md"
+  ],
   "scripts": {
     "test": "node --test --test-concurrency=1 tests/*.test.mjs",
     "check:syntax": "node --check scripts/pi-worker.mjs && node --check scripts/install-config.mjs && node --check scripts/codex-meter.mjs",
-    "check": "npm run check:syntax && npm test"
+    "check": "npm run check:syntax && npm test",
+    "serve": "node scripts/pi-worker.mjs serve",
+    "dashboard": "node scripts/pi-worker.mjs dashboard"
+  },
+  "keywords": [
+    "pi-cli",
+    "agent",
+    "delegate",
+    "codex",
+    "claude-code",
+    "trae",
+    "cursor",
+    "automation",
+    "monitoring",
+    "dashboard",
+    "worker"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/your-org/pi-delegate#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/pi-delegate.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/pi-delegate/issues"
   }
 }

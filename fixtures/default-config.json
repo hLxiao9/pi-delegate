@@ -4,7 +4,9 @@
   "defaultProfile": "volcengine",
   "maxRevisionRounds": 2,
   "autoIntegrateCleanSource": true,
-  "retryDelaysMs": [1000],
+  "retryDelaysMs": [
+    1000
+  ],
   "limits": {
     "piTimeoutSeconds": 1800,
     "maxChangedFiles": 80,
@@ -12,9 +14,22 @@
     "maxCapturedCharsPerStream": 12000,
     "maxDiffBytes": 2000000
   },
-  "verificationEnvAllowlist": ["CI", "NODE_ENV", "PYTHONPATH", "RUST_BACKTRACE"],
-  "alwaysForbiddenPaths": [".git/**", ".env", ".env.*", "**/.env", "**/.env.*", "**/*credential*", "**/*secret*"],
-  "codexRateCard": {
+  "verificationEnvAllowlist": [
+    "CI",
+    "NODE_ENV",
+    "PYTHONPATH",
+    "RUST_BACKTRACE"
+  ],
+  "alwaysForbiddenPaths": [
+    ".git/**",
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    "**/*credential*",
+    "**/*secret*"
+  ],
+  "parentRateCard": {
     "model": "gpt-5.6-sol",
     "effectiveDate": "2026-07-23",
     "source": "https://help.openai.com/en/articles/20001106-codex-rate-card",
@@ -24,9 +39,11 @@
       "output": 750
     }
   },
-  "codexSubscription": {
+  "parentSubscription": {
     "plan": "plus",
-    "monthlyUsd": 20
+    "monthlyUsd": 20,
+    "weeklyAllowanceCredits": 140,
+    "weeklyAllowanceSource": "community-reverse-engineered-2026-05; OpenAI does not officially publish weekly credit allowances. Override per your own observation via codex /status."
   },
   "profiles": {
     "volcengine": {
@@ -34,12 +51,153 @@
       "model": "ark-code-latest",
       "thinking": "high",
       "apiKeyEnv": "VOLCENGINE_API_KEY",
-      "capabilities": ["text", "code", "tool-use"],
+      "capabilities": [
+        "text",
+        "code",
+        "tool-use"
+      ],
       "fallbackProfiles": [],
+      "costTier": "standard",
       "monthlyPlan": {
         "currency": "CNY",
         "amount": 40
+      },
+      "strengths": [
+        "frontend",
+        "backend"
+      ],
+      "modalities": [
+        "text"
+      ]
+    },
+    "deepseek": {
+      "provider": "deepseek",
+      "model": "deepseek-v4-flash",
+      "thinking": "high",
+      "apiKeyEnv": "DEEPSEEK_API_KEY",
+      "capabilities": [
+        "text",
+        "code",
+        "tool-use"
+      ],
+      "fallbackProfiles": [],
+      "costTier": "cheap",
+      "monthlyPlan": {
+        "currency": "CNY",
+        "amount": 0
+      },
+      "strengths": [
+        "algorithm",
+        "systems",
+        "backend"
+      ],
+      "modalities": [
+        "text"
+      ]
+    },
+    "kimi": {
+      "provider": "kimi-coding",
+      "model": "kimi-for-coding",
+      "thinking": "high",
+      "apiKeyEnv": "KIMI_API_KEY",
+      "capabilities": [
+        "text",
+        "code",
+        "tool-use"
+      ],
+      "fallbackProfiles": [],
+      "costTier": "standard",
+      "monthlyPlan": {
+        "currency": "CNY",
+        "amount": 0
+      },
+      "strengths": [
+        "refactor",
+        "docs",
+        "backend"
+      ],
+      "modalities": [
+        "text"
+      ]
+    },
+    "minimax-m3": {
+      "provider": "minimax-cn",
+      "model": "MiniMax-M3",
+      "thinking": "high",
+      "apiKeyEnv": "MINIMAX_CN_API_KEY",
+      "capabilities": [
+        "text",
+        "code",
+        "tool-use"
+      ],
+      "fallbackProfiles": [],
+      "costTier": "premium",
+      "monthlyPlan": {
+        "currency": "CNY",
+        "amount": 0
+      },
+      "strengths": [
+        "frontend",
+        "docs",
+        "backend"
+      ],
+      "modalities": [
+        "text"
+      ]
+    },
+    "gemini-vision": {
+      "provider": "google",
+      "model": "gemini-2.5-pro",
+      "thinking": "high",
+      "apiKeyEnv": "GOOGLE_API_KEY",
+      "capabilities": [
+        "text",
+        "code",
+        "tool-use",
+        "vision-input"
+      ],
+      "fallbackProfiles": [],
+      "costTier": "premium",
+      "strengths": [
+        "docs",
+        "backend",
+        "refactor"
+      ],
+      "modalities": [
+        "text",
+        "vision"
+      ],
+      "monthlyPlan": {
+        "currency": "USD",
+        "amount": 0
+      }
+    },
+    "gpt-image": {
+      "provider": "openai",
+      "model": "gpt-image-1",
+      "thinking": "high",
+      "apiKeyEnv": "OPENAI_API_KEY",
+      "capabilities": [
+        "text",
+        "code",
+        "tool-use",
+        "image-output"
+      ],
+      "fallbackProfiles": [],
+      "costTier": "premium",
+      "strengths": [
+        "frontend",
+        "docs"
+      ],
+      "modalities": [
+        "text",
+        "image-output"
+      ],
+      "monthlyPlan": {
+        "currency": "USD",
+        "amount": 0
       }
     }
-  }
+  },
+  "maxConcurrentRuns": 4
 }

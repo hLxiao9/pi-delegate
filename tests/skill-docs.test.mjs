@@ -19,7 +19,7 @@ test('SKILL encodes the complete safe loop and stays concise', async () => {
   const source = await readFile(path.join(root, 'SKILL.md'), 'utf8');
   for (const phrase of [
     'doctor', 'prepare', 'run', 'verify', 'revise', 'approve', 'integrate', 'report', 'cleanup',
-    'vision-input', 'image-output', 'P0', 'P1', 'P2', 'Never push', 'Do not ask the user to review code'
+    'vision-input', 'image-output', 'P0', 'P1', 'P2', 'Never push', 'Do not ask the user to review code', 'maxConcurrentRuns', 'PARENT_AGENT', 'Parallel execution', 'matching `modalities`'
   ]) assert.ok(source.includes(phrase), phrase);
   assert.ok(source.split('\n').length < 500);
   const forbiddenDraftMarkers = ['TO' + 'DO', 'T' + 'BD', 'fill' + ' in', 'implement' + ' later'];

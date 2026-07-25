@@ -66,8 +66,8 @@ test('report distinguishes Plus fixed cost, external plan amortization, and esti
   assert.equal(reported.code, 0, reported.stderr);
   const payload = JSON.parse(reported.stdout);
   const metrics = JSON.parse(await readFile(payload.metricsFile, 'utf8'));
-  assert.equal(metrics.codex.actualCredits, 0.2425);
-  assert.equal(metrics.codex.measurementStartSource, 'prepare-fallback');
+  assert.equal(metrics.parent.actualCredits, 0.2425);
+  assert.equal(metrics.parent.measurementStartSource, 'prepare-fallback');
   assert.equal(metrics.pi.usage.inputTokens, 120);
   assert.equal(metrics.pi.usage.requests, 1);
   assert.ok(metrics.pi.usage.durationMs > 0);

@@ -10,7 +10,7 @@ const cli = path.join(root, 'scripts', 'pi-worker.mjs');
 test('--help exposes the stable subcommand surface', async () => {
   const result = await runNode(cli, ['--help']);
   assert.equal(result.code, 0, result.stderr);
-  for (const command of ['doctor', 'prepare', 'run', 'revise', 'verify', 'approve', 'integrate', 'report', 'cleanup']) {
+  for (const command of ['doctor', 'prepare', 'run', 'revise', 'verify', 'approve', 'integrate', 'report', 'cleanup', 'list', 'inspect', 'dashboard', 'serve']) {
     assert.match(result.stdout, new RegExp(`\\b${command}\\b`));
   }
 });

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://local.pi-worker.invalid/review-result.schema.json",
-  "title": "Sol Review Result",
+  "title": "Parent Review Result",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "verdict", "diffSha256", "findings", "verificationGaps", "summary"],

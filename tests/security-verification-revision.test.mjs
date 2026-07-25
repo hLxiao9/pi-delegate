@@ -18,6 +18,10 @@ async function fixture({ piMode = 'always-correct' } = {}) {
   await runProcess('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgSign=false', 'commit', '-m', 'test: add allowed source'], { cwd: repositoryRoot });
   const paths = resolveWorkerPaths({}, home);
   await installDefaultConfiguration({ paths });
+  // These tests focus on verify/revise/approve mechanics; disable selfReview so verify -> reviewing directly.
+  const cfg = JSON.parse(await readFile(paths.configFile, 'utf8'));
+  cfg.selfReview = { enabled: false };
+  await writeFile(paths.configFile, JSON.stringify(cfg));
   const pi = path.join(home, 'bin', 'pi');
   await writeExecutable(pi, `#!/usr/bin/env node
 const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
