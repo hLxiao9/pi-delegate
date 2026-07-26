@@ -1,0 +1,69 @@
+name: Bug report
+description: Report something that isn't working as expected
+title: "[bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug! Please **redact all API keys / tokens** before pasting any output.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the unexpected behavior. Include the smallest task JSON / review JSON that reproduces it.
+      placeholder: "I ran `pi-worker run --id ...` and ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      placeholder: "The run should have advanced to `verifying`."
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: "`pi-worker doctor` output"
+      description: Run `pi-worker doctor --task <your-task.json>` and paste the JSON. Redact any keys.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: inspect
+    attributes:
+      label: "`pi-worker inspect --id <run-id>` output"
+      description: For a failing run, paste the inspect JSON. Redact secrets.
+      render: shell
+    validations:
+      required: false
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `node --version && git --version && pi --version`
+      placeholder: "node v22.x / git 2.x / pi 0.8x.x"
+    validations:
+      required: true
+  - type: dropdown
+    id: caller
+    attributes:
+      label: Parent agent (caller)
+      options:
+        - codex
+        - claude-code
+        - trae
+        - cursor
+        - pi-recursive
+        - cli
+        - other / unknown
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Logs, screenshots, config snippets. Redact secrets.
+    validations:
+      required: false

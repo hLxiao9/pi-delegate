@@ -1,4 +1,46 @@
-lib/.write-test
+# Dependencies
 node_modules/
+
+# pi-worker runtime state & cache (never commit user run data)
+.local/
+.cache/pi-worker/
+
+# Logs
 *.log
+npm-debug.log*
+
+# OS files
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# Secrets — never commit credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+config.local.json
+credentials.json
+
+# Build output
+dist/
+build/
+
+# Test / coverage
+coverage/
+.nyc_output/
+.pytest_cache/
+
+# Misc temp files created during runs
+lib/.write-test
+*.tmp
