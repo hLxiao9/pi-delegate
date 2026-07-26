@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   test:
-    name: Syntax + tests
+    name: Syntax + tests (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -20,16 +20,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: ${{ matrix.node-version }}
-          cache: npm
-
-      - name: Install Pi CLI (for doctor model-availability checks in tests)
-        run: npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+          # No cache: npm — this project has zero runtime deps and no lockfile.
 
       - name: Syntax check
         run: npm run check:syntax
@@ -40,8 +37,10 @@ jobs:
       - name: Test summary
         if: always()
         run: |
-          echo "## Test results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          npm test 2>&1 | tail -12 >> $GITHUB_STEP_SUMMARY || true
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Test results"
+            echo ""
+            echo '```'
+            npm test 2>&1 | tail -12 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
