@@ -55,4 +55,4 @@ process.exitCode = await main(process.argv.slice(2), process, {
 // If a signal arrived while no child process was active, preserve the usual
 // shell exit convention after the current command has finished its atomic
 // state update.
-if (lastSignal && process.exitCode === 0) process.exitCode = lastSignal === 'SIGINT' ? 130 : 143;
+if (lastSignal && process.exitCode === 0) process.exitCode = lastSignal === 'SIGINT' ? 130 : lastSignal === 'SIGHUP' ? 129 : 143;
