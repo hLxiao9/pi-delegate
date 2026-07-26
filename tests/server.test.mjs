@@ -307,6 +307,56 @@ test('buildConnectionsPayload marks profile credentialAvailable=true when env ke
   assert.ok(!json.includes('third-redacted'));
 });
 
+
+test('buildConnectionsPayload falls back to shell profile env when process.env lacks key', async () => {
+  // 模拟 server 从 GUI/非交互 shell 启动:进程 env 没有 API key,
+  // 但用户 ~/.zshrc 里 export 了。dashboard 应识别为已配置。
+  const home = await makeTempDir('server-conn-shellprofile-');
+  const paths = resolveWorkerPaths({}, home);
+  await seedConnectionsConfig(paths);
+  // 在临时 home 写 .zshrc,包含 VOLCENGINE_API_KEY 的 export 语句
+  const zshrcContent = [
+    '# conda init block (simulated)',
+    'export PATH=/usr/local/bin:$PATH',
+    "export VOLCENGINE_API_KEY='shell-profile-key'",
+    'export KIMI_API_KEY="another-key"',
+    '# placeholder export SHOULD_NOT_LEAK=YOUR_KEY_HERE',
+  ].join('\n') + '\n';
+  await writeFile(path.join(home, '.zshrc'), zshrcContent);
+  // env 不含任何 API key,但 HOME 指向临时目录(有 .zshrc)
+  const env = { PATH: '', HOME: home };
+  const payload = await buildConnectionsPayload({ env, paths });
+  const volcengine = payload.profiles.find((p) => p.name === 'volcengine');
+  const kimi = payload.profiles.find((p) => p.name === 'kimi');
+  const trae = payload.profiles.find((p) => p.name === 'trae-cli');
+  assert.equal(volcengine.credentialAvailable, true, 'volcengine 应从 .zshrc 兜底识别为已配置');
+  assert.equal(volcengine.hintType, 'none');
+  assert.equal(kimi.credentialAvailable, true, 'kimi 应从 .zshrc 兜底识别为已配置');
+  assert.equal(trae.credentialAvailable, false, 'trae 用 OAuth,.zshrc 里没有也不影响');
+  // 严禁 key 值泄露到 payload
+  const json = JSON.stringify(payload);
+  assert.ok(!json.includes('shell-profile-key'), 'key 值不能泄露到 payload');
+  assert.ok(!json.includes('another-key'), 'key 值不能泄露到 payload');
+  assert.ok(!json.includes('YOUR_KEY_HERE'), '占位符不应被当作真实凭证');
+});
+
+test('buildConnectionsPayload prefers process.env over shell profile', async () => {
+  // process.env 里的值优先于 shell profile 里的值
+  const home = await makeTempDir('server-conn-env-priority-');
+  const paths = resolveWorkerPaths({}, home);
+  await seedConnectionsConfig(paths);
+  await writeFile(path.join(home, '.zshrc'), "export VOLCENGINE_API_KEY='from-profile'\n");
+  // process.env 里有值,应该优先用这个(虽然两者都判定为已配置)
+  const env = { PATH: '', HOME: home, VOLCENGINE_API_KEY: 'from-process-env' };
+  const payload = await buildConnectionsPayload({ env, paths });
+  const volcengine = payload.profiles.find((p) => p.name === 'volcengine');
+  assert.equal(volcengine.credentialAvailable, true);
+  // 两个值都不应泄露
+  const json = JSON.stringify(payload);
+  assert.ok(!json.includes('from-profile'));
+  assert.ok(!json.includes('from-process-env'));
+});
+
 test('GET /api/connections returns ok:true with adapters[] and profiles[]', async () => {
   const home = await makeTempDir('server-conn-route-');
   const paths = resolveWorkerPaths({}, home);

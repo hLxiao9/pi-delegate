@@ -54,5 +54,19 @@ echo ""
 # 捕获 Ctrl+C 给个友好提示
 trap 'say "已停止。"; exit 0' INT
 
+# 加载用户 shell profile 里的 export 语句(API keys 等)
+# 解决从 GUI/非交互 shell 启动时缺少环境变量的问题
+load_shell_exports() {
+  local exports=""
+  for f in "$HOME/.zshrc" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.profile"; do
+    [ -f "$f" ] || continue
+    # 只提取 export NAME=value 行,避免 zsh/bash 特定语法报错
+    exports+="$(grep -E '^\s*export\s+[A-Z_][A-Z0-9_]*=' "$f" 2>/dev/null)"
+\n'
+  done
+  [ -n "$exports" ] && eval "$exports" 2>/dev/null || true
+}
+load_shell_exports
+
 # shellcheck disable=SC2086
 exec $PI_WORKER serve --port "$PORT"
