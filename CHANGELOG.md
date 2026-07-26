@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_Nothing yet. Add upcoming changes here until the next tagged release._
+
+## [0.1.0] - 2026-07-25
+
+First public release. Closed-loop delegation to Pi CLI with isolation, independent verification, parent review, self-review (token saver), live monitoring dashboard, multi-parent dispatch, difficulty-based model selection, and multi-CLI adapter support (Pi / Kimi / Trae / Qoder).
+
 ### Added
 - AGPL-3.0-or-later license (migrated from MIT).
 - Bilingual README: English (`README.md`) + Simplified Chinese (`README.zh-CN.md`) with language switcher.
@@ -23,9 +29,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dashboard filter `<select>` elements now inherit `color: var(--text)` so they are visible in dark mode.
 - Expanded `.gitignore` to cover pi-worker runtime state/cache, OS files, IDE folders, and secrets.
 
-## [0.1.0] - 2026-07-XX (pre-public)
-
-Initial public release. Closed-loop delegation to Pi CLI with isolation, independent verification, parent review, self-review (token saver), live monitoring dashboard, multi-parent dispatch, difficulty-based model selection, and multi-CLI adapter support (Pi / Kimi / Trae / Qoder).
-
-[Unreleased]: https://github.com/hLxiao9/pi-delegate/compare/HEAD
+[Unreleased]: https://github.com/hLxiao9/pi-delegate/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/hLxiao9/pi-delegate/releases/tag/v0.1.0
