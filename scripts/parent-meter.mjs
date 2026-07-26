@@ -1,4 +1,12 @@
 #!/usr/bin/env node
+/*
+ * pi-delegate - Parent-agent-owned Pi implementation worker
+ * Copyright (C) 2026 hLxiao9
+ *
+ * Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
+ * See the LICENSE file at the repo root for full text.
+ */
+
 import path from 'node:path';
 import { writeJsonAtomic } from '../lib/atomic-json.mjs';
 import { WorkerError, serializeError } from '../lib/errors.mjs';

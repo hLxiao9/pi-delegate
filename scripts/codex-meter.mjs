@@ -1,4 +1,12 @@
 #!/usr/bin/env node
+/*
+ * pi-delegate - Parent-agent-owned Pi implementation worker
+ * Copyright (C) 2026 hLxiao9
+ *
+ * Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
+ * See the LICENSE file at the repo root for full text.
+ */
+
 // Deprecated alias for parent-meter.mjs.
 // Kept for backward compatibility with existing Codex workflows that call `codex-meter`.
 // Reads CODEX_THREAD_ID (or PARENT_THREAD_ID) and snapshots Codex (or other configured parent) usage.

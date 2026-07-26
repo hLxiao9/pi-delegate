@@ -1,3 +1,11 @@
+/*
+ * pi-delegate - Parent-agent-owned Pi implementation worker
+ * Copyright (C) 2026 hLxiao9
+ *
+ * Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
+ * See the LICENSE file at the repo root for full text.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
@@ -16,15 +24,15 @@ function makeConfig(profiles, defaultProfile) {
 
 function makeTask(overrides = {}) {
   return {
-    goal: 'Add a small helper function.',
-    acceptanceCriteria: ['tests pass'],
-    risk: 'low',
-    constraints: [],
-    requiredCapabilities: ['text', 'code'],
-    verification: [{ argv: ['npm', 'test'], timeoutSeconds: 120, env: {} }],
-    allowedPaths: ['src/**'],
-    forbiddenPaths: ['.env*'],
-    ...overrides,
+  goal: 'Add a small helper function.',
+  acceptanceCriteria: ['tests pass'],
+  risk: 'low',
+  constraints: [],
+  requiredCapabilities: ['text', 'code'],
+  verification: [{ argv: ['npm', 'test'], timeoutSeconds: 120, env: {} }],
+  allowedPaths: ['src/**'],
+  forbiddenPaths: ['.env*'],
+  ...overrides,
   };
 }
 
@@ -76,8 +84,8 @@ test('inferTaskDomain returns null when no keyword matches and no explicit domai
 
 test('selectProfileForTask honors explicit options.profile over routing', () => {
   const config = makeConfig({
-    cheap: { provider: 'p', model: 'm-cheap', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['frontend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
-    premium: { provider: 'p', model: 'm-premium', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'premium', strengths: ['backend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  cheap: { provider: 'p', model: 'm-cheap', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['frontend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  premium: { provider: 'p', model: 'm-premium', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'premium', strengths: ['backend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
   });
   const task = makeTask({ risk: 'high' }); // would route to premium
   const result = selectProfileForTask(config, task, { profile: 'cheap' });
@@ -87,20 +95,20 @@ test('selectProfileForTask honors explicit options.profile over routing', () => 
 
 test('selectProfileForTask routes by costTier when no domain match', () => {
   const config = makeConfig({
-    cheap: { provider: 'p', model: 'm-cheap', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['algorithm'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
-    standard: { provider: 'p', model: 'm-std', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'standard', strengths: ['backend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
-    premium: { provider: 'p', model: 'm-premium', apiKeyEnv: 'K3', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'premium', strengths: ['refactor'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  cheap: { provider: 'p', model: 'm-cheap', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['algorithm'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  standard: { provider: 'p', model: 'm-std', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'standard', strengths: ['backend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  premium: { provider: 'p', model: 'm-premium', apiKeyEnv: 'K3', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'premium', strengths: ['refactor'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
   });
-  // 构造真正 high 难度但 risk=medium(避免被 HIGH_RISK_BLOCKED 提前返回 null):
-  // long goal + 多验收标准 + medium risk + 多约束 + tool-use + 多验证 + 多路径
+  // construct real high difficulty but risk=medium(avoid being HIGH_RISK_BLOCKED early return null):
+  // long goal + multiple acceptance criteria + medium risk + multiple constraints + tool-use + multiple verifications + multiple paths
   const task = makeTask({
-    goal: 'Refactor the entire streaming pipeline with backpressure, exactly-once semantics, multi-region failover, observability, and reversible migration. ' + 'x'.repeat(200),
-    acceptanceCriteria: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
-    risk: 'medium',
-    constraints: ['c1', 'c2', 'c3', 'c4', 'c5'],
-    requiredCapabilities: ['text', 'code', 'tool-use'],
-    verification: [{ argv: ['npm', 'test'], timeoutSeconds: 300, env: {} }, { argv: ['npm', 'run', 'lint'], timeoutSeconds: 60, env: {} }, { argv: ['npm', 'run', 'e2e'], timeoutSeconds: 600, env: {} }],
-    allowedPaths: ['src/**', 'tests/**', 'docs/**', 'scripts/**', 'config/**'],
+  goal: 'Refactor the entire streaming pipeline with backpressure, exactly-once semantics, multi-region failover, observability, and reversible migration. ' + 'x'.repeat(200),
+  acceptanceCriteria: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
+  risk: 'medium',
+  constraints: ['c1', 'c2', 'c3', 'c4', 'c5'],
+  requiredCapabilities: ['text', 'code', 'tool-use'],
+  verification: [{ argv: ['npm', 'test'], timeoutSeconds: 300, env: {} }, { argv: ['npm', 'run', 'lint'], timeoutSeconds: 60, env: {} }, { argv: ['npm', 'run', 'e2e'], timeoutSeconds: 600, env: {} }],
+  allowedPaths: ['src/**', 'tests/**', 'docs/**', 'scripts/**', 'config/**'],
   }); // score = 2(goal>800) + 2(acceptance>=8) + 1(risk=medium) + 1(constraints>=5) + 1(tool-use) + 1(verification>=3) + 1(allowedPaths>=5) = 9 → high
   const result = selectProfileForTask(config, task);
   assert.equal(result.name, 'premium');
@@ -110,14 +118,14 @@ test('selectProfileForTask routes by costTier when no domain match', () => {
 });
 
 test('selectProfileForTask soft-matches domain strengths within the target tier', () => {
-  // 同一 standard tier 内有两个 profile:一个擅长 backend,一个擅长 frontend。
+  // same standard tier has two inside profile:one good at backend,one good at frontend.
   const config = makeConfig({
-    stdBackend: { provider: 'p', model: 'm-backend', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'standard', strengths: ['backend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
-    stdFrontend: { provider: 'p', model: 'm-frontend', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'standard', strengths: ['frontend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  stdBackend: { provider: 'p', model: 'm-backend', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'standard', strengths: ['backend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  stdFrontend: { provider: 'p', model: 'm-frontend', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'standard', strengths: ['frontend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
   });
   const task = makeTask({
-    goal: 'Refactor the React component to use hooks',
-    acceptanceCriteria: ['a', 'b', 'c', 'd'], risk: 'medium', // medium → standard tier
+  goal: 'Refactor the React component to use hooks',
+  acceptanceCriteria: ['a', 'b', 'c', 'd'], risk: 'medium', // medium → standard tier
   });
   const result = selectProfileForTask(config, task);
   assert.equal(result.name, 'stdFrontend', 'should pick the frontend-strength profile in standard tier');
@@ -127,11 +135,11 @@ test('selectProfileForTask soft-matches domain strengths within the target tier'
 
 test('selectProfileForTask falls back to first candidate when domain has no strength match', () => {
   const config = makeConfig({
-    stdBackend: { provider: 'p', model: 'm-backend', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'standard', strengths: ['backend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  stdBackend: { provider: 'p', model: 'm-backend', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'standard', strengths: ['backend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
   });
   const task = makeTask({
-    goal: 'Refactor the React component', // inferred frontend
-    acceptanceCriteria: ['a', 'b', 'c', 'd'], risk: 'medium',
+  goal: 'Refactor the React component', // inferred frontend
+  acceptanceCriteria: ['a', 'b', 'c', 'd'], risk: 'medium',
   });
   const result = selectProfileForTask(config, task);
   assert.equal(result.name, 'stdBackend');
@@ -141,8 +149,8 @@ test('selectProfileForTask falls back to first candidate when domain has no stre
 
 test('selectProfileForTask falls back to defaultProfile when no costTier configured anywhere', () => {
   const config = makeConfig({
-    a: { provider: 'p', model: 'ma', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], monthlyPlan: { currency: 'USD', amount: 0 } },
-    b: { provider: 'p', model: 'mb', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], monthlyPlan: { currency: 'USD', amount: 0 } },
+  a: { provider: 'p', model: 'ma', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], monthlyPlan: { currency: 'USD', amount: 0 } },
+  b: { provider: 'p', model: 'mb', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], monthlyPlan: { currency: 'USD', amount: 0 } },
   }, 'b');
   const result = selectProfileForTask(config, makeTask());
   assert.equal(result.name, 'b');
@@ -150,8 +158,8 @@ test('selectProfileForTask falls back to defaultProfile when no costTier configu
 
 test('selectProfileForTask soft-matches explicit task.domain even without keyword inference', () => {
   const config = makeConfig({
-    cheapAlgo: { provider: 'p', model: 'm1', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['algorithm'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
-    cheapDocs: { provider: 'p', model: 'm2', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['docs'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  cheapAlgo: { provider: 'p', model: 'm1', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['algorithm'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  cheapDocs: { provider: 'p', model: 'm2', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['docs'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
   });
   const task = makeTask({ domain: 'docs' }); // low difficulty → cheap tier, explicit docs
   const result = selectProfileForTask(config, task);
@@ -168,7 +176,7 @@ test('selectProfileForTask returns null when no profiles and no defaultProfile',
 
 test('selectProfileForTask exposes routing metadata for observability', () => {
   const config = makeConfig({
-    cheap: { provider: 'p', model: 'm', apiKeyEnv: 'K', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['frontend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  cheap: { provider: 'p', model: 'm', apiKeyEnv: 'K', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['frontend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
   });
   const result = selectProfileForTask(config, makeTask({ goal: 'Add a React component' }));
   assert.ok(result.routing);
@@ -181,7 +189,7 @@ test('selectProfileForTask exposes routing metadata for observability', () => {
 
 test('selectProfileByDifficulty legacy entry still works', () => {
   const config = makeConfig({
-    cheap: { provider: 'p', model: 'm', apiKeyEnv: 'K', capabilities: ['text', 'code'], fallbackProfiles: [], costTier: 'cheap' },
+  cheap: { provider: 'p', model: 'm', apiKeyEnv: 'K', capabilities: ['text', 'code'], fallbackProfiles: [], costTier: 'cheap' },
   });
   const result = selectProfileByDifficulty(config, 'low');
   assert.equal(result.name, 'cheap');
@@ -195,8 +203,8 @@ test('constants are stable', () => {
 
 test('selectProfileForTask routes vision-input task to vision-capable profile', () => {
   const config = makeConfig({
-    textOnly: { provider: 'p', model: 'm-text', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['backend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
-    visionPro: { provider: 'p', model: 'm-vision', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use', 'vision-input'], fallbackProfiles: [], costTier: 'cheap', strengths: ['docs'], modalities: ['text', 'vision'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  textOnly: { provider: 'p', model: 'm-text', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['backend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  visionPro: { provider: 'p', model: 'm-vision', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use', 'vision-input'], fallbackProfiles: [], costTier: 'cheap', strengths: ['docs'], modalities: ['text', 'vision'], monthlyPlan: { currency: 'USD', amount: 0 } },
   });
   const task = makeTask({ requiredCapabilities: ['text', 'code', 'vision-input'], risk: 'low' });
   const result = selectProfileForTask(config, task);
@@ -206,8 +214,8 @@ test('selectProfileForTask routes vision-input task to vision-capable profile', 
 
 test('selectProfileForTask routes image-output task to image-capable profile', () => {
   const config = makeConfig({
-    textOnly: { provider: 'p', model: 'm-text', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['frontend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
-    imagePro: { provider: 'p', model: 'm-image', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use', 'image-output'], fallbackProfiles: [], costTier: 'cheap', strengths: ['frontend'], modalities: ['text', 'image-output'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  textOnly: { provider: 'p', model: 'm-text', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['frontend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  imagePro: { provider: 'p', model: 'm-image', apiKeyEnv: 'K2', capabilities: ['text', 'code', 'tool-use', 'image-output'], fallbackProfiles: [], costTier: 'cheap', strengths: ['frontend'], modalities: ['text', 'image-output'], monthlyPlan: { currency: 'USD', amount: 0 } },
   });
   const task = makeTask({ requiredCapabilities: ['text', 'image-output'], risk: 'low' });
   const result = selectProfileForTask(config, task);
@@ -217,7 +225,7 @@ test('selectProfileForTask routes image-output task to image-capable profile', (
 
 test('selectProfileForTask returns null when no profile supports required vision modality', () => {
   const config = makeConfig({
-    textOnly: { provider: 'p', model: 'm-text', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['backend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
+  textOnly: { provider: 'p', model: 'm-text', apiKeyEnv: 'K1', capabilities: ['text', 'code', 'tool-use'], fallbackProfiles: [], costTier: 'cheap', strengths: ['backend'], modalities: ['text'], monthlyPlan: { currency: 'USD', amount: 0 } },
   });
   const task = makeTask({ requiredCapabilities: ['text', 'vision-input'], risk: 'low' });
   const result = selectProfileForTask(config, task);

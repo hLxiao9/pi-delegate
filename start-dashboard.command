@@ -1,68 +1,67 @@
 #!/usr/bin/env bash
-# Pi Worker 监控台一键启动器
-# macOS: 双击此文件即可在浏览器中打开实时监控台
-# Linux/通用: bash start-dashboard.command
+# Pi Worker Dashboard one-click launcher
+# macOS: double-click this file to open the live dashboard in your browser
+# Linux/generic: bash start-dashboard.command
 #
-# 启动后浏览器会自动打开 http://localhost:7317/
-# 页面右上角"刷新"按钮拉取最新用量数据，或直接 F5
-# Ctrl+C 停止服务
+# After startup the browser will open http://localhost:7317/
+# top-right of the page"Refresh"button to fetch the latest usage data, or directly F5
+# Ctrl+C stop the service
 
 set -e
 
-# 切到脚本所在目录（便于在仓库内回退到 npm link）
+# Switch to the script directory(to allow falling back to npm link)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# 颜色输出
+# Color output
 say() { printf "\033[1;36m[pi-delegate]\033[0m %s\n" "$1"; }
 warn() { printf "\033[1;33m[pi-delegate]\033[0m %s\n" "$1" >&2; }
 err() { printf "\033[1;31m[pi-delegate]\033[0m %s\n" "$1" >&2; }
 
-# 1. 检测 pi-worker 命令
+# 1. Detect pi-worker command
 if ! command -v pi-worker >/dev/null 2>&1; then
-  # 仓库内回退：尝试本地的 scripts/pi-worker.mjs
+  # In-repo fallback: Try the local scripts/pi-worker.mjs
   LOCAL_ENTRY="$SCRIPT_DIR/scripts/pi-worker.mjs"
   if [ -f "$LOCAL_ENTRY" ]; then
-    say "未找到全局 pi-worker，使用本地仓库入口。"
-    say "提示：运行 \\`npm link\\` 可注册全局命令。"
-    PI_WORKER="node $LOCAL_ENTRY"
+  say "Global not found pi-worker, using local repo entry."
+  say "Hint: run \\`npm link\\` can register the global command."
+  PI_WORKER="node $LOCAL_ENTRY"
   else
-    err "未找到 pi-worker 命令。"
-    echo ""
-    echo "请先安装："
-    echo "  npm install -g pi-delegate"
-    echo ""
-    echo "或在本仓库内开发模式："
-    echo "  npm link"
-    echo ""
-    read -r -p "按回车退出..." _
-    exit 1
+  err "not found pi-worker command."
+  echo ""
+  echo "Please install first: "
+  echo "  npm install -g pi-delegate"
+  echo ""
+  echo "Or in development mode within this repo: "
+  echo "  npm link"
+  echo ""
+  read -r -p "Press Enter to exit..." _
+  exit 1
   fi
 else
   PI_WORKER="pi-worker"
 fi
 
-# 2. 端口（支持环境变量覆盖）
+# 2. Port(supports environment variable override)
 PORT="${PI_WORKER_PORT:-7317}"
 
-# 3. 启动 serve（默认会自动打开浏览器）
-say "启动 Pi Worker 监控台 → http://localhost:${PORT}/"
-say "页面右上角点击 \"刷新\" 按钮拉取最新用量，或直接 F5"
-say "Ctrl+C 停止服务"
+# 3. start serve(browser auto-opens by default)
+say "Starting Pi Worker Dashboard → http://localhost:${PORT}/"
+say "Click at the top-right of the page \"Refresh\" button to fetch the latest usage, or directly F5"
+say "Ctrl+C stop the service"
 echo ""
 
-# 捕获 Ctrl+C 给个友好提示
-trap 'say "已停止。"; exit 0' INT
+# Catch Ctrl+C for a friendly message
+trap 'say "Stopped."; exit 0' INT
 
-# 加载用户 shell profile 里的 export 语句(API keys 等)
-# 解决从 GUI/非交互 shell 启动时缺少环境变量的问题
+# Load export statements from user shell profile(API keys etc.)
+# Solves the issue of missing environment variables when starting from GUI/non-interactive shell startup missing environment variables issue
 load_shell_exports() {
   local exports=""
   for f in "$HOME/.zshrc" "$HOME/.bash_profile" "$HOME/.bashrc" "$HOME/.profile"; do
-    [ -f "$f" ] || continue
-    # 只提取 export NAME=value 行,避免 zsh/bash 特定语法报错
-    exports+="$(grep -E '^\s*export\s+[A-Z_][A-Z0-9_]*=' "$f" 2>/dev/null)"
-\n'
+  [ -f "$f" ] || continue
+  # Only extract export NAME=value lines,to avoid zsh/bash specific syntax errors
+  exports+="$(grep -E '^\s*export\s+[A-Z_][A-Z0-9_]*=' "$f" 2>/dev/null)"
   done
   [ -n "$exports" ] && eval "$exports" 2>/dev/null || true
 }

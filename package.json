@@ -38,13 +38,13 @@
     "dashboard",
     "worker"
   ],
-  "license": "MIT",
-  "homepage": "https://github.com/your-org/pi-delegate#readme",
+  "license": "AGPL-3.0-or-later",
+  "homepage": "https://github.com/hLxiao9/pi-delegate#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-org/pi-delegate.git"
+    "url": "git+https://github.com/hLxiao9/pi-delegate.git"
   },
   "bugs": {
-    "url": "https://github.com/your-org/pi-delegate/issues"
+    "url": "https://github.com/hLxiao9/pi-delegate/issues"
   }
 }

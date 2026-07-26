@@ -1,3 +1,11 @@
+/*
+ * pi-delegate - Parent-agent-owned Pi implementation worker
+ * Copyright (C) 2026 hLxiao9
+ *
+ * Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
+ * See the LICENSE file at the repo root for full text.
+ */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import path from 'node:path';
@@ -64,12 +72,12 @@ test('resolveBin uses adapter-specific env var', () => {
   const kimiAdapter = getAdapter('kimi');
   const traeAdapter = getAdapter('trae');
   const qoderAdapter = getAdapter('qoder');
-  // 默认 bin
+  // default bin
   assert.equal(resolveBin(piAdapter, {}), 'pi');
   assert.equal(resolveBin(kimiAdapter, {}), 'kimi');
   assert.equal(resolveBin(traeAdapter, {}), 'traecli');
   assert.equal(resolveBin(qoderAdapter, {}), 'qoderclicn');
-  // env 覆盖
+  // env override
   assert.equal(resolveBin(piAdapter, { PI_WORKER_PI_BIN: '/custom/pi' }), '/custom/pi');
   assert.equal(resolveBin(kimiAdapter, { PI_WORKER_KIMI_BIN: '/custom/kimi' }), '/custom/kimi');
   assert.equal(resolveBin(traeAdapter, { PI_WORKER_TRAE_BIN: '/custom/traecli' }), '/custom/traecli');
@@ -92,12 +100,12 @@ test('PiAdapter.versionCommand returns --version argv', () => {
 test('KimiAdapter.invokeCommand returns -p prompt argv', () => {
   const adapter = getAdapter('kimi');
   const cmd = adapter.invokeCommand({
-    state: { runId: 'test-run', worktreePath: '/tmp/wt' },
-    profile: { provider: 'kimi', model: 'kimi-for-coding' },
-    prompt: 'hello world',
-    config: {},
-    sessionDir: '/tmp/session',
-    mode: 'run',
+  state: { runId: 'test-run', worktreePath: '/tmp/wt' },
+  profile: { provider: 'kimi', model: 'kimi-for-coding' },
+  prompt: 'hello world',
+  config: {},
+  sessionDir: '/tmp/session',
+  mode: 'run',
   });
   assert.deepEqual(cmd.argv, ['-p', 'hello world']);
   assert.equal(cmd.input, null);
@@ -106,12 +114,12 @@ test('KimiAdapter.invokeCommand returns -p prompt argv', () => {
 test('TraeAdapter.invokeCommand returns -p --json --yolo argv', () => {
   const adapter = getAdapter('trae');
   const cmd = adapter.invokeCommand({
-    state: { runId: 'test-run', worktreePath: '/tmp/wt' },
-    profile: { provider: 'trae', model: 'default' },
-    prompt: 'hello',
-    config: {},
-    sessionDir: '/tmp/session',
-    mode: 'run',
+  state: { runId: 'test-run', worktreePath: '/tmp/wt' },
+  profile: { provider: 'trae', model: 'default' },
+  prompt: 'hello',
+  config: {},
+  sessionDir: '/tmp/session',
+  mode: 'run',
   });
   assert.ok(cmd.argv.includes('-p'));
   assert.ok(cmd.argv.includes('hello'));
@@ -125,12 +133,12 @@ test('TraeAdapter.invokeCommand returns -p --json --yolo argv', () => {
 test('QoderAdapter.invokeCommand returns -p --output-format=json --yolo argv', () => {
   const adapter = getAdapter('qoder');
   const cmd = adapter.invokeCommand({
-    state: { runId: 'test-run', worktreePath: '/tmp/wt' },
-    profile: { provider: 'qoder', model: 'default' },
-    prompt: 'hello',
-    config: {},
-    sessionDir: '/tmp/session',
-    mode: 'run',
+  state: { runId: 'test-run', worktreePath: '/tmp/wt' },
+  profile: { provider: 'qoder', model: 'default' },
+  prompt: 'hello',
+  config: {},
+  sessionDir: '/tmp/session',
+  mode: 'run',
   });
   assert.ok(cmd.argv.includes('-p'));
   assert.ok(cmd.argv.includes('hello'));
@@ -142,8 +150,8 @@ test('QoderAdapter.invokeCommand returns -p --output-format=json --yolo argv', (
 test('PiAdapter.parseOutput extracts text from NDJSON', () => {
   const adapter = getAdapter('pi');
   const ndjson = [
-    JSON.stringify({ type: 'message_start' }),
-    JSON.stringify({ type: 'message_end', message: { role: 'assistant', content: [{ type: 'text', text: 'hello pi' }], usage: { input: 10, output: 5 } } }),
+  JSON.stringify({ type: 'message_start' }),
+  JSON.stringify({ type: 'message_end', message: { role: 'assistant', content: [{ type: 'text', text: 'hello pi' }], usage: { input: 10, output: 5 } } }),
   ].join('\n');
   const result = adapter.parseOutput(ndjson, '', 0, false);
   assert.equal(result.text, 'hello pi');
@@ -161,8 +169,8 @@ test('KimiAdapter.parseOutput returns text with null usage', () => {
 test('TraeAdapter.parseOutput parses JSON array', () => {
   const adapter = getAdapter('trae');
   const jsonOutput = JSON.stringify([
-    { role: 'user', content: 'hi' },
-    { role: 'assistant', content: 'hello trae' },
+  { role: 'user', content: 'hi' },
+  { role: 'assistant', content: 'hello trae' },
   ]);
   const result = adapter.parseOutput(jsonOutput, '', 0, false);
   assert.equal(result.text, 'hello trae');
@@ -230,11 +238,11 @@ test('config loads profiles with adapter field', async () => {
   const defaultConfig = await readJson(new URL('../fixtures/default-config.json', import.meta.url));
   await writeJsonAtomic(paths.configFile, defaultConfig);
   const config = await loadConfig(paths);
-  // kimi-cli profile 应该有 adapter='kimi'
+  // kimi-cli profile shouldthehas adapter='kimi'
   assert.equal(config.profiles['kimi-cli'].adapter, 'kimi');
   assert.equal(config.profiles['trae-cli'].adapter, 'trae');
   assert.equal(config.profiles['qoder-cli'].adapter, 'qoder');
-  // volcengine profile 没有显式 adapter,默认应该是 'pi'
+  // volcengine profile noexplicit adapter,defaultshouldtheis 'pi'
   assert.equal(config.profiles['volcengine'].adapter, 'pi');
 });
 

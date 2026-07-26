@@ -1,3 +1,11 @@
+/*
+ * pi-delegate - Parent-agent-owned Pi implementation worker
+ * Copyright (C) 2026 hLxiao9
+ *
+ * Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
+ * See the LICENSE file at the repo root for full text.
+ */
+
 import assert from 'node:assert/strict';
 import { access, appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -13,20 +21,20 @@ const meter = path.join(skillRoot, 'scripts', 'codex-meter.mjs');
 
 function tokenEvent(input, cached, output) {
   return JSON.stringify({
-    type: 'event_msg',
-    payload: {
-      type: 'token_count',
-      info: {
-        total_token_usage: {
-          input_tokens: input,
-          cached_input_tokens: cached,
-          cache_write_input_tokens: 0,
-          output_tokens: output,
-          reasoning_output_tokens: 0,
-          total_tokens: input + output,
-        },
-      },
-    },
+  type: 'event_msg',
+  payload: {
+  type: 'token_count',
+  info: {
+  total_token_usage: {
+  input_tokens: input,
+  cached_input_tokens: cached,
+  cache_write_input_tokens: 0,
+  output_tokens: output,
+  reasoning_output_tokens: 0,
+  total_tokens: input + output,
+  },
+  },
+  },
   });
 }
 
@@ -77,8 +85,8 @@ test('report distinguishes Plus fixed cost, external plan amortization, and esti
   assert.equal(metrics.cash.providerPlan.currency, 'CNY');
   assert.equal(metrics.cash.cashSavingsAmount, 0);
   assert.deepEqual(metrics.visual, { route: 'chatgpt-web', generations: 0, delegatedToPi: false, excludedFromCodeSavings: true });
-  assert.match(await readFile(payload.reportFile, 'utf8'), /反事实估算/);
-  assert.match(await readFile(payload.reportFile, 'utf8'), /未推送远端/);
+  assert.match(await readFile(payload.reportFile, 'utf8'), /Counterfactual estimated/);
+  assert.match(await readFile(payload.reportFile, 'utf8'), /not pushed to remote/);
 
   const cleaned = await runNode(cli, ['cleanup', '--id', item.runId], { env: item.env });
   assert.equal(cleaned.code, 0, cleaned.stderr);
@@ -89,13 +97,13 @@ test('report distinguishes Plus fixed cost, external plan amortization, and esti
 test('report explains blocked security guardrails without exposing secret values', async () => {
   const item = await createReviewedFixture();
   await updateRun(item.paths, item.runId, (state) => transition(state, 'blocked', {
-    security: { passed: false, issues: [{ code: 'SECRET_DETECTED', message: 'Added lines contain a probable credential' }] },
+  security: { passed: false, issues: [{ code: 'SECRET_DETECTED', message: 'Added lines contain a probable credential' }] },
   }, 'security guardrail'));
   const reported = await runNode(cli, ['report', '--id', item.runId], { env: item.env });
   assert.equal(reported.code, 0, reported.stderr);
   const payload = JSON.parse(reported.stdout);
   const report = await readFile(payload.reportFile, 'utf8');
-  assert.match(report, /阻断原因：security guardrail/);
-  assert.match(report, /安全问题：SECRET_DETECTED/);
+  assert.match(report, /block reason: security guardrail/);
+  assert.match(report, /security issue: SECRET_DETECTED/);
   assert.doesNotMatch(report, /probable credential/);
 });

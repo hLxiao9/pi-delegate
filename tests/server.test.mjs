@@ -1,3 +1,11 @@
+/*
+ * pi-delegate - Parent-agent-owned Pi implementation worker
+ * Copyright (C) 2026 hLxiao9
+ *
+ * Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
+ * See the LICENSE file at the repo root for full text.
+ */
+
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -14,33 +22,33 @@ async function seedRun(paths, overrides = {}) {
   await mkdir(dir, { recursive: true });
   const now = overrides.createdAt ?? new Date().toISOString();
   const state = {
-    schemaVersion: 1,
-    runId,
-    status: overrides.status ?? 'integrated',
-    createdAt: now,
-    updatedAt: now,
-    caller: overrides.caller,
-    provider: overrides.provider ?? 'volcengine-plan',
-    model: overrides.model ?? 'ark-code-latest',
-    profile: 'volcengine-plan',
-    revisionRound: 0,
-    fallbackUsed: false,
-    implementationCommit: overrides.implementationCommit ?? 'abc123def456789012345678901234567890abcd',
-    integratedCommit: null,
-    sourceBranch: 'main',
-    workerBranch: 'pi-worker/' + runId,
-    transitions: [],
+  schemaVersion: 1,
+  runId,
+  status: overrides.status ?? 'integrated',
+  createdAt: now,
+  updatedAt: now,
+  caller: overrides.caller,
+  provider: overrides.provider ?? 'volcengine-plan',
+  model: overrides.model ?? 'ark-code-latest',
+  profile: 'volcengine-plan',
+  revisionRound: 0,
+  fallbackUsed: false,
+  implementationCommit: overrides.implementationCommit ?? 'abc123def456789012345678901234567890abcd',
+  integratedCommit: null,
+  sourceBranch: 'main',
+  workerBranch: 'pi-worker/' + runId,
+  transitions: [],
   };
   await writeFile(path.join(dir, 'state.json'), JSON.stringify(state, null, 2) + '\n');
   if (overrides.withMetrics !== false) {
-    const metrics = {
-      schemaVersion: 1, runId, generatedAt: now, elapsedMs: 5000,
-      quality: { finalVerificationPassed: true, securityPassed: true, unresolvedBlockingFindings: 0, revisionRounds: 0, fallbackUsed: false, committed: true, integrated: true },
-      codex: { model: 'gpt-5.6-sol', usage: { available: true, inputTokens: 2000, outputTokens: 200, totalTokens: 2200 }, actualCredits: 0.24 },
-      pi: { provider: state.provider, model: state.model, usage: { inputTokens: 120, outputTokens: 30, totalTokens: 170, requests: 1, durationMs: 1500 } },
-      counterfactual: { estimatedCreditSavingRate: 0.5 },
-    };
-    await writeFile(path.join(dir, 'metrics.json'), JSON.stringify(metrics, null, 2) + '\n');
+  const metrics = {
+  schemaVersion: 1, runId, generatedAt: now, elapsedMs: 5000,
+  quality: { finalVerificationPassed: true, securityPassed: true, unresolvedBlockingFindings: 0, revisionRounds: 0, fallbackUsed: false, committed: true, integrated: true },
+  codex: { model: 'gpt-5.6-sol', usage: { available: true, inputTokens: 2000, outputTokens: 200, totalTokens: 2200 }, actualCredits: 0.24 },
+  pi: { provider: state.provider, model: state.model, usage: { inputTokens: 120, outputTokens: 30, totalTokens: 170, requests: 1, durationMs: 1500 } },
+  counterfactual: { estimatedCreditSavingRate: 0.5 },
+  };
+  await writeFile(path.join(dir, 'metrics.json'), JSON.stringify(metrics, null, 2) + '\n');
   }
   return state;
 }
@@ -90,15 +98,15 @@ test('GET / returns live HTML with refresh button and dashboard-body', async () 
   await seedRun(paths, { runId: 'html-run' });
   const { server, url } = await startServer(createRequestHandler(paths, { port: 0 }));
   try {
-    const { status, text } = await fetchText(url + '/');
-    assert.equal(status, 200);
-    assert.match(text, /Pi Worker 监控台/);
-    assert.match(text, /html-run/);
-    assert.match(text, /class="panel-refresh-btn"/);
-    assert.match(text, /id="dashboard-body"/);
-    assert.match(text, /\/api\/fragment/);
+  const { status, text } = await fetchText(url + '/');
+  assert.equal(status, 200);
+  assert.match(text, /Pi Worker Dashboard/);
+  assert.match(text, /html-run/);
+  assert.match(text, /class="panel-refresh-btn"/);
+  assert.match(text, /id="dashboard-body"/);
+  assert.match(text, /\/api\/fragment/);
   } finally {
-    server.close();
+  server.close();
   }
 });
 
@@ -108,13 +116,13 @@ test('GET /api/fragment returns bodyHtml with run data', async () => {
   await seedRun(paths, { runId: 'frag-run' });
   const { server, url } = await startServer(createRequestHandler(paths, { port: 0 }));
   try {
-    const { status, json } = await fetchJson(url + '/api/fragment');
-    assert.equal(status, 200);
-    assert.equal(json.ok, true);
-    assert.match(json.bodyHtml, /frag-run/);
-    assert.ok(json.generatedAt);
+  const { status, json } = await fetchJson(url + '/api/fragment');
+  assert.equal(status, 200);
+  assert.equal(json.ok, true);
+  assert.match(json.bodyHtml, /frag-run/);
+  assert.ok(json.generatedAt);
   } finally {
-    server.close();
+  server.close();
   }
 });
 
@@ -124,14 +132,14 @@ test('GET /api/runs returns states and metricsList', async () => {
   await seedRun(paths, { runId: 'runs-run' });
   const { server, url } = await startServer(createRequestHandler(paths, { port: 0 }));
   try {
-    const { status, json } = await fetchJson(url + '/api/runs');
-    assert.equal(status, 200);
-    assert.equal(json.ok, true);
-    assert.equal(json.states.length, 1);
-    assert.equal(json.metricsList.length, 1);
-    assert.equal(json.states[0].runId, 'runs-run');
+  const { status, json } = await fetchJson(url + '/api/runs');
+  assert.equal(status, 200);
+  assert.equal(json.ok, true);
+  assert.equal(json.states.length, 1);
+  assert.equal(json.metricsList.length, 1);
+  assert.equal(json.states[0].runId, 'runs-run');
   } finally {
-    server.close();
+  server.close();
   }
 });
 
@@ -140,11 +148,11 @@ test('GET /health returns ok', async () => {
   const paths = resolveWorkerPaths({}, home);
   const { server, url } = await startServer(createRequestHandler(paths, { port: 0 }));
   try {
-    const { status, json } = await fetchJson(url + '/health');
-    assert.equal(status, 200);
-    assert.equal(json.ok, true);
+  const { status, json } = await fetchJson(url + '/health');
+  assert.equal(status, 200);
+  assert.equal(json.ok, true);
   } finally {
-    server.close();
+  server.close();
   }
 });
 
@@ -153,12 +161,12 @@ test('unknown route returns 404 with NOT_FOUND', async () => {
   const paths = resolveWorkerPaths({}, home);
   const { server, url } = await startServer(createRequestHandler(paths, { port: 0 }));
   try {
-    const { status, json } = await fetchJson(url + '/unknown');
-    assert.equal(status, 404);
-    assert.equal(json.ok, false);
-    assert.equal(json.error.code, 'NOT_FOUND');
+  const { status, json } = await fetchJson(url + '/unknown');
+  assert.equal(status, 404);
+  assert.equal(json.ok, false);
+  assert.equal(json.error.code, 'NOT_FOUND');
   } finally {
-    server.close();
+  server.close();
   }
 });
 
@@ -167,30 +175,30 @@ test('GET / handles empty runs gracefully', async () => {
   const paths = resolveWorkerPaths({}, home);
   const { server, url } = await startServer(createRequestHandler(paths, { port: 0 }));
   try {
-    const { status, text } = await fetchText(url + '/');
-    assert.equal(status, 200);
-    assert.match(text, /还没有任何 run/);
+  const { status, text } = await fetchText(url + '/');
+  assert.equal(status, 200);
+  assert.match(text, /No runs yet/);
   } finally {
-    server.close();
+  server.close();
   }
 });
 
 test('renderDashboardFragment escapes HTML in runId', () => {
   const malicious = {
-    runId: '<script>x</script>',
-    status: 'integrated',
-    caller: 'trae',
-    provider: 'p',
-    model: 'm',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    revisionRound: 0,
-    fallbackUsed: false,
-    implementationCommit: null,
-    integratedCommit: null,
-    sourceBranch: null,
-    workerBranch: null,
-    transitions: [],
+  runId: '<script>x</script>',
+  status: 'integrated',
+  caller: 'trae',
+  provider: 'p',
+  model: 'm',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  revisionRound: 0,
+  fallbackUsed: false,
+  implementationCommit: null,
+  integratedCommit: null,
+  sourceBranch: null,
+  workerBranch: null,
+  transitions: [],
   };
   const fragment = renderDashboardFragment([malicious], [null], new Date().toISOString());
   assert.ok(!fragment.bodyHtml.includes('<script>x</script>'));
@@ -215,28 +223,28 @@ test('renderDashboardHtml without live option has no refresh button', () => {
 
 async function seedConnectionsConfig(paths, env) {
   const minimalConfig = {
-    schemaVersion: 1,
-    minimumPiVersion: '0.80.10',
-    defaultProfile: 'volcengine',
-    maxRevisionRounds: 2,
-    autoIntegrateCleanSource: true,
-    retryDelaysMs: [1000],
-    limits: {
-      piTimeoutSeconds: 1800,
-      maxChangedFiles: 80,
-      maxDeletedLineRatio: 0.35,
-      maxCapturedCharsPerStream: 12000,
-      maxDiffBytes: 2000000,
-    },
-    verificationEnvAllowlist: ['CI'],
-    alwaysForbiddenPaths: ['.git/**'],
-    parentRateCard: { model: 'x', effectiveDate: '2026-01-01', source: 's', creditsPerMillion: { nonCachedInput: 1, cachedInput: 1, output: 1 } },
-    parentSubscription: { plan: 'plus', monthlyUsd: 20 },
-    profiles: {
-      volcengine: { provider: 'volcengine-plan', model: 'ark-latest', apiKeyEnv: 'VOLCENGINE_API_KEY', adapter: 'pi', capabilities: ['text', 'code'], fallbackProfiles: ['kimi', 'trae-cli'], monthlyPlan: { currency: 'CNY', amount: 0 } },
-      kimi: { provider: 'kimi-coding', model: 'kimi-for-coding', apiKeyEnv: 'KIMI_API_KEY', adapter: 'kimi', capabilities: ['text', 'code'], fallbackProfiles: [], monthlyPlan: { currency: 'CNY', amount: 0 } },
-      'trae-cli': { provider: 'trae', model: 'trae-default', apiKeyEnv: 'TRAE_CLI_TOKEN', adapter: 'trae', capabilities: ['text', 'code'], fallbackProfiles: [], monthlyPlan: { currency: 'CNY', amount: 0 } },
-    },
+  schemaVersion: 1,
+  minimumPiVersion: '0.80.10',
+  defaultProfile: 'volcengine',
+  maxRevisionRounds: 2,
+  autoIntegrateCleanSource: true,
+  retryDelaysMs: [1000],
+  limits: {
+  piTimeoutSeconds: 1800,
+  maxChangedFiles: 80,
+  maxDeletedLineRatio: 0.35,
+  maxCapturedCharsPerStream: 12000,
+  maxDiffBytes: 2000000,
+  },
+  verificationEnvAllowlist: ['CI'],
+  alwaysForbiddenPaths: ['.git/**'],
+  parentRateCard: { model: 'x', effectiveDate: '2026-01-01', source: 's', creditsPerMillion: { nonCachedInput: 1, cachedInput: 1, output: 1 } },
+  parentSubscription: { plan: 'plus', monthlyUsd: 20 },
+  profiles: {
+  volcengine: { provider: 'volcengine-plan', model: 'ark-latest', apiKeyEnv: 'VOLCENGINE_API_KEY', adapter: 'pi', capabilities: ['text', 'code'], fallbackProfiles: ['kimi', 'trae-cli'], monthlyPlan: { currency: 'CNY', amount: 0 } },
+  kimi: { provider: 'kimi-coding', model: 'kimi-for-coding', apiKeyEnv: 'KIMI_API_KEY', adapter: 'kimi', capabilities: ['text', 'code'], fallbackProfiles: [], monthlyPlan: { currency: 'CNY', amount: 0 } },
+  'trae-cli': { provider: 'trae', model: 'trae-default', apiKeyEnv: 'TRAE_CLI_TOKEN', adapter: 'trae', capabilities: ['text', 'code'], fallbackProfiles: [], monthlyPlan: { currency: 'CNY', amount: 0 } },
+  },
   };
   await mkdir(path.dirname(paths.configFile), { recursive: true });
   await writeFile(paths.configFile, JSON.stringify(minimalConfig, null, 2) + '\n');
@@ -250,23 +258,23 @@ test('buildConnectionsPayload returns adapters[] and profiles[] with required fi
   const payload = await buildConnectionsPayload({ env, paths });
   assert.ok(Array.isArray(payload.adapters));
   assert.ok(Array.isArray(payload.profiles));
-  // 每个 adapter 都至少有 name / available / version / stderr / bin
+  // each adapter all at least have name / available / version / stderr / bin
   for (const a of payload.adapters) {
-    assert.equal(typeof a.name, 'string');
-    assert.equal(typeof a.available, 'boolean');
-    assert.ok(Object.prototype.hasOwnProperty.call(a, 'version'));
-    assert.ok(Object.prototype.hasOwnProperty.call(a, 'stderr'));
-    assert.ok(Object.prototype.hasOwnProperty.call(a, 'bin'));
+  assert.equal(typeof a.name, 'string');
+  assert.equal(typeof a.available, 'boolean');
+  assert.ok(Object.prototype.hasOwnProperty.call(a, 'version'));
+  assert.ok(Object.prototype.hasOwnProperty.call(a, 'stderr'));
+  assert.ok(Object.prototype.hasOwnProperty.call(a, 'bin'));
   }
-  // profile 的字段: name / provider / model / adapter / apiKeyEnv / credentialAvailable / hint / hintType
+  // profile fields: name / provider / model / adapter / apiKeyEnv / credentialAvailable / hint / hintType
   for (const p of payload.profiles) {
-    assert.equal(typeof p.name, 'string');
-    assert.equal(typeof p.provider, 'string');
-    assert.equal(typeof p.model, 'string');
-    assert.equal(typeof p.adapter, 'string');
-    assert.equal(typeof p.apiKeyEnv, 'string');
-    assert.equal(typeof p.credentialAvailable, 'boolean');
-    assert.ok(['env', 'oauth', 'none'].includes(p.hintType));
+  assert.equal(typeof p.name, 'string');
+  assert.equal(typeof p.provider, 'string');
+  assert.equal(typeof p.model, 'string');
+  assert.equal(typeof p.adapter, 'string');
+  assert.equal(typeof p.apiKeyEnv, 'string');
+  assert.equal(typeof p.credentialAvailable, 'boolean');
+  assert.ok(['env', 'oauth', 'none'].includes(p.hintType));
   }
 });
 
@@ -274,7 +282,7 @@ test('buildConnectionsPayload marks profiles with credentialAvailable=false when
   const home = await makeTempDir('server-conn-partial-');
   const paths = resolveWorkerPaths({}, home);
   await seedConnectionsConfig(paths);
-  // 只设置其中一个 key,其余视为未配置
+  // only set one of them key,the rest considered not configured
   const env = { PATH: '' };
   const payload = await buildConnectionsPayload({ env, paths });
   const volcengine = payload.profiles.find((p) => p.name === 'volcengine');
@@ -296,11 +304,11 @@ test('buildConnectionsPayload marks profile credentialAvailable=true when env ke
   const env = { PATH: '', VOLCENGINE_API_KEY: 'redacted-value', KIMI_API_KEY: 'also-redacted', TRAE_CLI_TOKEN: 'third-redacted' };
   const payload = await buildConnectionsPayload({ env, paths });
   for (const p of payload.profiles) {
-    assert.equal(p.credentialAvailable, true, p.name + ' should be configured');
-    assert.equal(p.hintType, 'none');
-    assert.equal(p.hint, null);
+  assert.equal(p.credentialAvailable, true, p.name + ' should be configured');
+  assert.equal(p.hintType, 'none');
+  assert.equal(p.hint, null);
   }
-  // 严禁真实 env 值泄露到 hint
+  // strictly forbid real env value leaks to hint
   const json = JSON.stringify(payload);
   assert.ok(!json.includes('redacted-value'));
   assert.ok(!json.includes('also-redacted'));
@@ -309,49 +317,49 @@ test('buildConnectionsPayload marks profile credentialAvailable=true when env ke
 
 
 test('buildConnectionsPayload falls back to shell profile env when process.env lacks key', async () => {
-  // 模拟 server 从 GUI/非交互 shell 启动:进程 env 没有 API key,
-  // 但用户 ~/.zshrc 里 export 了。dashboard 应识别为已配置。
+  // simulate server from GUI/non-interactive shell start:process env no API key,
+  // but user ~/.zshrc in export .dashboard should be recognized as configured.
   const home = await makeTempDir('server-conn-shellprofile-');
   const paths = resolveWorkerPaths({}, home);
   await seedConnectionsConfig(paths);
-  // 在临时 home 写 .zshrc,包含 VOLCENGINE_API_KEY 的 export 语句
+  // in temporary home write .zshrc,includes VOLCENGINE_API_KEY  export statement
   const zshrcContent = [
-    '# conda init block (simulated)',
-    'export PATH=/usr/local/bin:$PATH',
-    "export VOLCENGINE_API_KEY='shell-profile-key'",
-    'export KIMI_API_KEY="another-key"',
-    '# placeholder export SHOULD_NOT_LEAK=YOUR_KEY_HERE',
+  '# conda init block (simulated)',
+  'export PATH=/usr/local/bin:$PATH',
+  "export VOLCENGINE_API_KEY='shell-profile-key'",
+  'export KIMI_API_KEY="another-key"',
+  '# placeholder export SHOULD_NOT_LEAK=YOUR_KEY_HERE',
   ].join('\n') + '\n';
   await writeFile(path.join(home, '.zshrc'), zshrcContent);
-  // env 不含任何 API key,但 HOME 指向临时目录(有 .zshrc)
+  // env does not contain any API key,but HOME points to temporary directory(has .zshrc)
   const env = { PATH: '', HOME: home };
   const payload = await buildConnectionsPayload({ env, paths });
   const volcengine = payload.profiles.find((p) => p.name === 'volcengine');
   const kimi = payload.profiles.find((p) => p.name === 'kimi');
   const trae = payload.profiles.find((p) => p.name === 'trae-cli');
-  assert.equal(volcengine.credentialAvailable, true, 'volcengine 应从 .zshrc 兜底识别为已配置');
+  assert.equal(volcengine.credentialAvailable, true, 'volcengine should from .zshrc fallback recognized as configured');
   assert.equal(volcengine.hintType, 'none');
-  assert.equal(kimi.credentialAvailable, true, 'kimi 应从 .zshrc 兜底识别为已配置');
-  assert.equal(trae.credentialAvailable, false, 'trae 用 OAuth,.zshrc 里没有也不影响');
-  // 严禁 key 值泄露到 payload
+  assert.equal(kimi.credentialAvailable, true, 'kimi should from .zshrc fallback recognized as configured');
+  assert.equal(trae.credentialAvailable, false, 'trae use OAuth,.zshrc not having in does not affect');
+  // strictly forbid key value leaks to payload
   const json = JSON.stringify(payload);
-  assert.ok(!json.includes('shell-profile-key'), 'key 值不能泄露到 payload');
-  assert.ok(!json.includes('another-key'), 'key 值不能泄露到 payload');
-  assert.ok(!json.includes('YOUR_KEY_HERE'), '占位符不应被当作真实凭证');
+  assert.ok(!json.includes('shell-profile-key'), 'key value must not leak to payload');
+  assert.ok(!json.includes('another-key'), 'key value must not leak to payload');
+  assert.ok(!json.includes('YOUR_KEY_HERE'), 'placeholders should not be treated as real credentials');
 });
 
 test('buildConnectionsPayload prefers process.env over shell profile', async () => {
-  // process.env 里的值优先于 shell profile 里的值
+  // process.env value in takes precedence over shell profile value in
   const home = await makeTempDir('server-conn-env-priority-');
   const paths = resolveWorkerPaths({}, home);
   await seedConnectionsConfig(paths);
   await writeFile(path.join(home, '.zshrc'), "export VOLCENGINE_API_KEY='from-profile'\n");
-  // process.env 里有值,应该优先用这个(虽然两者都判定为已配置)
+  // process.env has value in,should prefer this(although both are judged as configured)
   const env = { PATH: '', HOME: home, VOLCENGINE_API_KEY: 'from-process-env' };
   const payload = await buildConnectionsPayload({ env, paths });
   const volcengine = payload.profiles.find((p) => p.name === 'volcengine');
   assert.equal(volcengine.credentialAvailable, true);
-  // 两个值都不应泄露
+  // neither value should leak
   const json = JSON.stringify(payload);
   assert.ok(!json.includes('from-profile'));
   assert.ok(!json.includes('from-process-env'));
@@ -366,23 +374,23 @@ test('GET /api/connections returns ok:true with adapters[] and profiles[]', asyn
   process.env.PATH = '';
   const { server, url } = await startServer(createRequestHandler(paths, { port: 0 }));
   try {
-    const { status, json } = await fetchJson(url + '/api/connections');
-    assert.equal(status, 200);
-    assert.equal(json.ok, true);
-    assert.ok(typeof json.generatedAt === 'string' && json.generatedAt.length > 0);
-    assert.ok(Array.isArray(json.adapters));
-    assert.ok(Array.isArray(json.profiles));
-    // 至少应包含 4 个 adapter (pi/kimi/trae/qoder)
-    assert.ok(json.adapters.length >= 4, `expected >=4 adapters, got ${json.adapters.length}`);
-    const adapterNames = json.adapters.map((a) => a.name).sort();
-    assert.deepEqual(adapterNames, ['kimi', 'pi', 'qoder', 'trae']);
-    // profile 必须包含 seed 写入的三个
-    const profileNames = json.profiles.map((p) => p.name).sort();
-    assert.deepEqual(profileNames, ['kimi', 'trae-cli', 'volcengine']);
+  const { status, json } = await fetchJson(url + '/api/connections');
+  assert.equal(status, 200);
+  assert.equal(json.ok, true);
+  assert.ok(typeof json.generatedAt === 'string' && json.generatedAt.length > 0);
+  assert.ok(Array.isArray(json.adapters));
+  assert.ok(Array.isArray(json.profiles));
+  // should at least contain 4 items adapter (pi/kimi/trae/qoder)
+  assert.ok(json.adapters.length >= 4, `expected >=4 adapters, got ${json.adapters.length}`);
+  const adapterNames = json.adapters.map((a) => a.name).sort();
+  assert.deepEqual(adapterNames, ['kimi', 'pi', 'qoder', 'trae']);
+  // profile must contain seed the three written
+  const profileNames = json.profiles.map((p) => p.name).sort();
+  assert.deepEqual(profileNames, ['kimi', 'trae-cli', 'volcengine']);
   } finally {
-    if (prevPath === undefined) delete process.env.PATH;
-    else process.env.PATH = prevPath;
-    server.close();
+  if (prevPath === undefined) delete process.env.PATH;
+  else process.env.PATH = prevPath;
+  server.close();
   }
 });
 
@@ -393,17 +401,17 @@ test('GET /api/connections never throws when env has no PATH and adapters fail t
   process.env.PATH = '';
   const { server, url } = await startServer(createRequestHandler(paths, { port: 0 }));
   try {
-    const { status, json } = await fetchJson(url + '/api/connections');
-    assert.equal(status, 200);
-    assert.equal(json.ok, true);
-    // 所有 adapter 都应 available=false
-    for (const a of json.adapters) assert.equal(a.available, false);
-    // 没有 config.json 时 profiles 为空数组
-    assert.deepEqual(json.profiles, []);
+  const { status, json } = await fetchJson(url + '/api/connections');
+  assert.equal(status, 200);
+  assert.equal(json.ok, true);
+  // all adapter all should available=false
+  for (const a of json.adapters) assert.equal(a.available, false);
+  // no config.json when profiles is an empty array
+  assert.deepEqual(json.profiles, []);
   } finally {
-    if (prevPath === undefined) delete process.env.PATH;
-    else process.env.PATH = prevPath;
-    server.close();
+  if (prevPath === undefined) delete process.env.PATH;
+  else process.env.PATH = prevPath;
+  server.close();
   }
 });
 
@@ -415,19 +423,19 @@ test('GET / returns the connections panel HTML alongside the existing dashboard 
   process.env.PATH = '';
   const { server, url } = await startServer(createRequestHandler(paths, { port: 0 }));
   try {
-    const { status, text } = await fetchText(url + '/');
-    assert.equal(status, 200);
-    // 既有的现场化元素保留
-    assert.match(text, /class="panel-refresh-btn"/);
-    assert.match(text, /id="dashboard-body"/);
-    // 新增的双 tab + 两侧面板
-    assert.match(text, /id="tab-btn-dashboard"/);
-    assert.match(text, /id="tab-btn-connections"/);
-    assert.match(text, /id="connections-body"/);
-    assert.match(text, /CLI \/ 模型使用统计/);
+  const { status, text } = await fetchText(url + '/');
+  assert.equal(status, 200);
+  // existing live elements retained
+  assert.match(text, /class="panel-refresh-btn"/);
+  assert.match(text, /id="dashboard-body"/);
+  // newly added dual tab + side panels
+  assert.match(text, /id="tab-btn-dashboard"/);
+  assert.match(text, /id="tab-btn-connections"/);
+  assert.match(text, /id="connections-body"/);
+  assert.match(text, /CLI \/ model usage statistics/);
   } finally {
-    if (prevPath === undefined) delete process.env.PATH;
-    else process.env.PATH = prevPath;
-    server.close();
+  if (prevPath === undefined) delete process.env.PATH;
+  else process.env.PATH = prevPath;
+  server.close();
   }
 });
