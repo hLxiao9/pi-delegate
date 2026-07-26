@@ -97,7 +97,7 @@ test('PiAdapter.versionCommand returns --version argv', () => {
   assert.deepEqual(cmd.argv, ['--version']);
 });
 
-test('KimiAdapter.invokeCommand returns -p prompt argv', () => {
+test('KimiAdapter.invokeCommand passes prompt via stdin (no argv leak)', () => {
   const adapter = getAdapter('kimi');
   const cmd = adapter.invokeCommand({
   state: { runId: 'test-run', worktreePath: '/tmp/wt' },
@@ -107,11 +107,13 @@ test('KimiAdapter.invokeCommand returns -p prompt argv', () => {
   sessionDir: '/tmp/session',
   mode: 'run',
   });
-  assert.deepEqual(cmd.argv, ['-p', 'hello world']);
-  assert.equal(cmd.input, null);
+  // Prompt must NOT appear in argv (prevents ps/proc leakage)
+  assert.ok(!cmd.argv.includes('hello world'));
+  assert.ok(cmd.argv.includes('-'));
+  assert.equal(cmd.input, 'hello world');
 });
 
-test('TraeAdapter.invokeCommand returns -p --json --yolo argv', () => {
+test('TraeAdapter.invokeCommand passes prompt via stdin (no argv leak)', () => {
   const adapter = getAdapter('trae');
   const cmd = adapter.invokeCommand({
   state: { runId: 'test-run', worktreePath: '/tmp/wt' },
@@ -121,16 +123,19 @@ test('TraeAdapter.invokeCommand returns -p --json --yolo argv', () => {
   sessionDir: '/tmp/session',
   mode: 'run',
   });
-  assert.ok(cmd.argv.includes('-p'));
-  assert.ok(cmd.argv.includes('hello'));
+  // Prompt must NOT appear in argv (prevents ps/proc leakage)
+  assert.ok(!cmd.argv.includes('hello'));
+  assert.ok(!cmd.argv.includes('-p'));
+  assert.ok(cmd.argv.includes('-'));
   assert.ok(cmd.argv.includes('--json'));
   assert.ok(cmd.argv.includes('--yolo'));
   assert.ok(cmd.argv.some((a) => a.startsWith('--allowed-tool')));
   assert.ok(cmd.argv.includes('--session-id'));
   assert.ok(cmd.argv.includes('test-run'));
+  assert.equal(cmd.input, 'hello');
 });
 
-test('QoderAdapter.invokeCommand returns -p --output-format=json --yolo argv', () => {
+test('QoderAdapter.invokeCommand passes prompt via stdin (no argv leak)', () => {
   const adapter = getAdapter('qoder');
   const cmd = adapter.invokeCommand({
   state: { runId: 'test-run', worktreePath: '/tmp/wt' },
@@ -140,11 +145,14 @@ test('QoderAdapter.invokeCommand returns -p --output-format=json --yolo argv', (
   sessionDir: '/tmp/session',
   mode: 'run',
   });
-  assert.ok(cmd.argv.includes('-p'));
-  assert.ok(cmd.argv.includes('hello'));
+  // Prompt must NOT appear in argv (prevents ps/proc leakage)
+  assert.ok(!cmd.argv.includes('-p'));
+  assert.ok(!cmd.argv.includes('hello'));
+  assert.ok(cmd.argv.includes('-'));
   assert.ok(cmd.argv.includes('--output-format=json'));
   assert.ok(cmd.argv.includes('--yolo'));
   assert.ok(cmd.argv.some((a) => a.startsWith('--allowed-tool')));
+  assert.equal(cmd.input, 'hello');
 });
 
 test('PiAdapter.parseOutput extracts text from NDJSON', () => {
