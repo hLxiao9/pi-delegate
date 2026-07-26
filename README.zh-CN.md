@@ -1,5 +1,7 @@
 # pi-delegate
 
+> **省 80%+ AI 编程成本**：把有边界的实现任务委托给便宜模型（Pi / MiniMax / DeepSeek / GLM），主控端 Agent（Codex / Claude Code / Trae / Cursor）保留架构、审查、提交权限。
+
 > 主控端 Agent 拥有的 Pi 实现 Worker：把有边界的代码任务委托给 Pi CLI，自带隔离、独立验证、审查与实时监控面板。
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)
