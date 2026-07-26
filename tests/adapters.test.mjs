@@ -97,7 +97,7 @@ test('PiAdapter.versionCommand returns --version argv', () => {
   assert.deepEqual(cmd.argv, ['--version']);
 });
 
-test('KimiAdapter.invokeCommand passes prompt via stdin (no argv leak)', () => {
+test('KimiAdapter.invokeCommand passes prompt via -p argv (kimi has no stdin-prompt)', () => {
   const adapter = getAdapter('kimi');
   const cmd = adapter.invokeCommand({
   state: { runId: 'test-run', worktreePath: '/tmp/wt' },
@@ -107,10 +107,12 @@ test('KimiAdapter.invokeCommand passes prompt via stdin (no argv leak)', () => {
   sessionDir: '/tmp/session',
   mode: 'run',
   });
-  // Prompt must NOT appear in argv (prevents ps/proc leakage)
-  assert.ok(!cmd.argv.includes('hello world'));
-  assert.ok(cmd.argv.includes('-'));
-  assert.equal(cmd.input, 'hello world');
+  // Kimi v0.29.1 has no stdin-prompt support (`kimi -` / `-p -` both fail),
+  // so the prompt must travel as the `-p` argv value.
+  const idx = cmd.argv.indexOf('-p');
+  assert.ok(idx !== -1, 'kimi must use -p for the prompt');
+  assert.equal(cmd.argv[idx + 1], 'hello world');
+  assert.equal(cmd.input, '');
 });
 
 test('TraeAdapter.invokeCommand passes prompt via stdin (no argv leak)', () => {
