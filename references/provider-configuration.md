@@ -2,6 +2,8 @@
 
 Read this file only for setup, `doctor` failures, or a requested provider change. The active source of truth is `/Users/xiao9/.config/pi-worker/config.json`; credentials remain environment variables.
 
+> **`apiKeyEnv` contract (read this first)**: the `apiKeyEnv` field in `~/.config/pi-worker/config.json` and the `$VAR` reference in `~/.pi/agent/models.json` must point to the **same** environment variable name. A mismatch (e.g., `apiKeyEnv: VOLCENGINE_API_KEY` in config but `$API_KEY` in models.json) causes silent 401s at run time. `pi-worker doctor` detects this and suggests the correct name. The nine built-in profiles each pin a specific `apiKeyEnv`; if you rename one, update both files.
+
 ## Preflight
 
 ```bash
@@ -13,7 +15,7 @@ Only use model IDs printed by the installed Pi version. Authentication failures 
 
 ## Built-in profiles and cost tiers
 
-The default fixture ships six profiles covering the cheap / standard / premium cost tiers plus vision and image-output modalities:
+The default fixture ships nine profiles covering the cheap / standard / premium cost tiers, vision and image-output modalities, and three alternate-CLI adapters (Kimi Code CLI, Trae CLI, Qoder CLI):
 
 | Profile | Provider | Model | `costTier` | `strengths` | `modalities` | API key env |
 |---|---|---|---|---|---|---|
@@ -23,6 +25,9 @@ The default fixture ships six profiles covering the cheap / standard / premium c
 | `minimax-m3` | `minimax-cn` | `MiniMax-M3` | `premium` | `frontend`, `docs`, `backend` | `text` | `MINIMAX_CN_API_KEY` |
 | `gemini-vision` | `google` | `gemini-2.5-pro` | `premium` | `docs`, `backend`, `refactor` | `text`, `vision` | `GOOGLE_API_KEY` |
 | `gpt-image` | `openai` | `gpt-image-1` | `premium` | `frontend`, `docs` | `text`, `image-output` | `OPENAI_API_KEY` |
+| `kimi-cli` | `kimi` | `kimi-for-coding` | `standard` | `refactor`, `docs`, `backend` | `text` | `KIMI_API_KEY` |
+| `trae-cli` | `trae` | `trae-default` | `premium` | `frontend`, `backend`, `systems` | `text` | `TRAE_CLI_TOKEN` (OAuth) |
+| `qoder-cli` | `qoder` | `qoder-default` | `standard` | `frontend`, `backend`, `docs` | `text` | `QODERCN_PERSONAL_ACCESS_TOKEN` |
 
 Difficulty mapping: `low` → `cheap`, `medium` → `standard`, `high` → `premium`. Within the same tier, the selector soft-matches `task.domain` (or an inferred domain from `task.goal` keywords) against `profile.strengths`. Override auto-selection with `pi-worker doctor --task TASK --profile NAME`.
 

@@ -10,12 +10,45 @@ Keep architecture, acceptance criteria, independent verification, review, and co
 
 ## Features
 
-- **Closed-loop delegation**: `doctor → prepare → run → verify → approve → integrate → report → cleanup`
-- **Crash-safe recovery**: process-group timeouts, SIGINT/SIGTERM cleanup, stale-lock reclamation, and `recover`
-- **Multi-parent dispatch**: tracks caller (`trae`, `codex`, `claude-code`, `cursor`, `pi-recursive`, `cli`) via env vars
-- **Automatic model selection by difficulty**: cheap / standard / premium profiles
-- **Hard gates**: wrapper verification, diff-hash integrity, security scan, zero unresolved P0–P2 findings
-- **Live monitoring dashboard**: HTTP server with refresh button, summary cards, filterable run table, expandable detail rows
+### Closed-loop delegation with independent verification
+`doctor → prepare → run → verify → self-review → approve → integrate → report → cleanup`. The wrapper re-runs your verification commands itself (not Pi's claims) and the diff hash is checked at every gate — a changed hash blocks approval.
+
+### Anti-cheat self-review (parent token saver)
+Before the parent agent reads the full diff, an optional second Pi turn re-reads its own work and emits a compact `self-review.json` (~50 lines vs thousands). Five anti-cheat safeguards keep it honest:
+- `verification.json` is produced by the wrapper, not Pi — Pi cannot lie about test results.
+- `diffSha256Mismatch=true` if Pi echoes the wrong hash → parent falls back to full review.
+- `fallbackRecommended=true` when Pi self-reports `unmet`/`uncertain` or any P0–P2 finding → parent falls back.
+- `approve` re-scans the diff and rejects if the hash changed.
+- High-risk tasks never reach self-review (`HIGH_RISK_BLOCKED`).
+
+Self-review never blocks the loop — on Pi failure, parse failure, or diff below `minDiffBytes`, it self-degrades to `reviewing` with `skipped:true`. Disable with `selfReview.enabled=false`.
+
+### Hard gates & security
+- Wrapper verification success, unchanged diff hash, passed security scan, acceptance evidence, and **zero unresolved P0–P2 findings** required to approve.
+- Pi is treated as untrusted: Bash, extensions, Skills, prompt templates, context files, and project auto-trust are never enabled.
+- Never pushes, creates PRs, changes remotes, or describes worktree isolation as an OS sandbox.
+- Never routes around authentication errors or capability mismatches with a fallback — a setup/credential failure is a real blocker.
+
+### Crash-safe recovery
+Process-group timeouts, SIGINT/SIGTERM cleanup, and stale-lock reclamation. After an interruption, `pi-worker recover --id <run-id>` reopens the run in place: a partial diff goes to `verify`, an empty diff goes back to `run`. A live lock is never stolen — only a lock whose owner process is gone is reclaimed.
+
+### Multi-parent dispatch
+Tracks the caller (`trae`, `codex`, `claude-code`, `cursor`, `pi-recursive`, `cli`) via the `PARENT_AGENT` / `PI_WORKER_CALLER` env var, so the dashboard can attribute runs and `list --caller <name>` can filter.
+
+### Parallel execution
+Multiple parent-agent sessions can run concurrently — each run gets an isolated Git worktree, state directory, and per-run file lock, so different runs never collide and the same run is never advanced by two processes at once. `maxConcurrentRuns` (default 4, range 1–16) caps active runs; `prepare` rejects with `CONCURRENCY_LIMIT` when the cap is hit. The dashboard reads `state.json` with JSON-parse tolerance, so a snapshot never crashes on a concurrent write.
+
+### Automatic model selection by difficulty
+Task signals (goal length, acceptance-criteria count, risk, constraints, required capabilities, verification count, path breadth) map to `low`/`medium`/`high` difficulty, which selects a `cheap`/`standard`/`premium` profile. Within a tier, `task.domain` (or an inferred domain) soft-matches `profile.strengths`. Override with `--profile <name>`; disable auto-selection by leaving `costTier` off your profiles.
+
+### Multi-CLI backends
+Beyond the default Pi backend, profiles can set `adapter: kimi | trae | qoder` to drive other coding CLIs (Kimi Code CLI, Trae CLI, Qoder CLI). Cross-adapter fallback works seamlessly. See [`references/provider-configuration.md`](./references/provider-configuration.md).
+
+### Cost & savings metrics
+Every run records Pi token usage (input/output/cached), displaced parent-side credits, equivalent parent credits, saving rate, and subscription-allowance portion. The dashboard surfaces mean saving rate across runs and a cohort recommendation. For adapters without token usage (Kimi/Trae/Qoder), metrics degrade gracefully (`saving rate = null`, recommendation = `no-usage-data-available`).
+
+### Live monitoring dashboard
+HTTP server with refresh button, summary cards, filterable run table (by caller, status, free text), expandable detail rows, light/dark theme, and a "Connection status" tab showing CLI adapter and profile credential health.
 
 ## Prerequisites
 
@@ -72,6 +105,19 @@ pi-worker --help
 ```
 
 > **Roadmap**: Homebrew tap (`brew tap hLxiao9/pi-delegate && brew install pi-delegate`) and a `curl | sh` one-line installer will be added after the first npm release.
+
+## First-time setup
+
+`npm install -g pi-delegate` automatically runs `node scripts/install-config.mjs` (via the `postinstall` hook) to merge the default config into `~/.config/pi-worker/config.json` and the Volcengine provider into `~/.pi/agent/models.json`. The merge is idempotent — your existing profiles, rate card, and subscription are preserved.
+
+If the auto-config did not run (e.g., `npm install --ignore-scripts`, a sandboxed package manager, or a tarball install), run it manually:
+
+```bash
+node scripts/install-config.mjs   # merges defaults; never overwrites user edits
+pi-worker init                    # interactive provider selection + credential report
+```
+
+> **`apiKeyEnv` contract warning**: the `apiKeyEnv` field in `~/.config/pi-worker/config.json` and the `$VAR` reference in `~/.pi/agent/models.json` must point to the **same** environment variable name. Mismatched names (e.g., `apiKeyEnv: VOLCENGINE_API_KEY` in config but `$API_KEY` in models.json) cause silent 401s at run time. `pi-worker doctor` detects this and suggests the correct name.
 
 ## Quickstart
 
@@ -237,7 +283,7 @@ pi-delegate does **not** manage model credentials itself — Pi does. The flow i
    ```bash
    pi --no-extensions --no-skills --no-prompt-templates --no-themes --no-context-files --no-approve --list-models
    ```
-3. **Map those models to pi-delegate profiles** in `~/.config/pi-worker/config.json`. Each profile picks a `provider` + `model` from Pi's registry and tags it with a `costTier` (`cheap` / `standard` / `premium`), `strengths` (domains), and `modalities`. Six profiles ship by default (`volcengine`, `deepseek`, `kimi`, `minimax-m3`, `gemini-vision`, `gpt-image`) — see [`references/provider-configuration.md`](./references/provider-configuration.md) for the full table and copy-paste JSON snippets for adding your own.
+3. **Map those models to pi-delegate profiles** in `~/.config/pi-worker/config.json`. Each profile picks a `provider` + `model` from Pi's registry and tags it with a `costTier` (`cheap` / `standard` / `premium`), `strengths` (domains), and `modalities`. Nine profiles ship by default (`volcengine`, `deepseek`, `kimi`, `minimax-m3`, `gemini-vision`, `gpt-image`, `kimi-cli`, `trae-cli`, `qoder-cli`) — see [`references/provider-configuration.md`](./references/provider-configuration.md) for the full table and copy-paste JSON snippets for adding your own.
 4. **Validate** with `pi-worker doctor` — it checks Node, Git, Pi, credentials, model availability, and task schema in one pass.
 
 > **Tip**: pi-delegate auto-selects a profile by task difficulty (`low → cheap`, `medium → standard`, `high → premium`). To force a specific profile (e.g. you only have MiniMax credentials), pass `--profile minimax-m3` to `doctor` / `prepare`.

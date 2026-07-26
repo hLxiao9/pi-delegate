@@ -283,7 +283,8 @@ test('buildConnectionsPayload marks profiles with credentialAvailable=false when
   const paths = resolveWorkerPaths({}, home);
   await seedConnectionsConfig(paths);
   // only set one of them key,the rest considered not configured
-  const env = { PATH: '' };
+  // HOME must point at the temp dir so loadShellProfileEnv cannot read the real ~/.zshrc
+  const env = { PATH: '', HOME: home };
   const payload = await buildConnectionsPayload({ env, paths });
   const volcengine = payload.profiles.find((p) => p.name === 'volcengine');
   const kimi = payload.profiles.find((p) => p.name === 'kimi');

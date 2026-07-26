@@ -23,7 +23,8 @@
     "check:syntax": "node --check scripts/pi-worker.mjs && node --check scripts/install-config.mjs && node --check scripts/codex-meter.mjs",
     "check": "npm run check:syntax && npm test",
     "serve": "node scripts/pi-worker.mjs serve",
-    "dashboard": "node scripts/pi-worker.mjs dashboard"
+    "dashboard": "node scripts/pi-worker.mjs dashboard",
+    "postinstall": "node scripts/install-config.mjs"
   },
   "keywords": [
     "pi-cli",

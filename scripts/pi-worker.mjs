@@ -10,6 +10,7 @@
 import { main } from '../lib/cli.mjs';
 import { dashboardCommand, inspectCommand, listCommand } from '../lib/dashboard.mjs';
 import { doctorCommand } from '../lib/doctor.mjs';
+import { initCommand } from '../lib/init.mjs';
 import { prepareCommand } from '../lib/git-worker.mjs';
 import { cleanupCommand, integrateCommand } from '../lib/integration.mjs';
 import { reviseCommand, runCommand } from '../lib/pi-runner.mjs';
@@ -33,6 +34,7 @@ if (signalSensitiveCommands.has(process.argv[2])) {
 }
 
 process.exitCode = await main(process.argv.slice(2), process, {
+  init: initCommand,
   doctor: doctorCommand,
   prepare: prepareCommand,
   run: runCommand,

@@ -10,12 +10,45 @@
 
 ## 特性
 
-- **闭环委托**：`doctor → prepare → run → verify → approve → integrate → report → cleanup`
-- **崩溃安全恢复**：进程组超时、SIGINT/SIGTERM 清理、过期锁回收、`recover` 重入
-- **多主控端调度**：通过环境变量追踪调用方（`trae`、`codex`、`claude-code`、`cursor`、`pi-recursive`、`cli`）
-- **按难度自动选模型**：cheap / standard / premium 三档 profile
-- **硬性闸门**：wrapper 验证、diff 哈希完整性、安全扫描、零未解决 P0–P2 问题
-- **实时监控面板**：HTTP 服务，带刷新按钮、汇总卡片、可过滤的 run 表格、可展开详情行
+### 闭环委托 + 独立验证
+`doctor → prepare → run → verify → self-review → approve → integrate → report → cleanup`。wrapper 会自己重跑你的验证命令（不依赖 Pi 的自述），并且每个闸门都校验 diff 哈希 —— 哈希一变就阻断审批。
+
+### 防作弊 self-review（主控端 token 省钱）
+主控端读完整 diff 之前，可选的第二个 Pi 回合会重读自己的产出，吐出紧凑的 `self-review.json`（约 50 行 vs 数千行）。5 重防作弊机制保证它诚实：
+- `verification.json` 由 wrapper 生成，不是 Pi —— Pi 无法对测试结果撒谎。
+- `diffSha256Mismatch=true`（Pi 回错哈希）→ 主控端回退全量审查。
+- `fallbackRecommended=true`（Pi 自报 `unmet`/`uncertain` 或任意 P0–P2）→ 主控端回退。
+- `approve` 会再扫一次 diff，哈希变了就拒。
+- 高危任务永远到不了 self-review（`HIGH_RISK_BLOCKED`）。
+
+self-review 永远不会卡住闭环 —— Pi 失败、JSON 解析失败、或 diff 小于 `minDiffBytes` 时，它会自动降级到 `reviewing` 并标 `skipped:true`。用 `selfReview.enabled=false` 完全关闭。
+
+### 硬性闸门与安全
+- 审批前必须：wrapper 验证通过、diff 哈希不变、安全扫描通过、有验收证据、**零未解决 P0–P2 问题**。
+- Pi 被当作不可信：永不开 Bash、extensions、Skills、prompt templates、context files、项目 auto-trust。
+- 永不 push、建 PR、改 remote，也不会把 worktree 隔离说成 OS 沙箱。
+- 永不绕过鉴权错误或能力不匹配 —— setup/凭证失败就是真 blocker。
+
+### 崩溃安全恢复
+进程组超时、SIGINT/SIGTERM 清理、过期锁回收。中断后 `pi-worker recover --id <run-id>` 原地重开 run：有部分 diff 送 `verify`，没 diff 送回 `run`。活动锁永远不会被抢 —— 只有 owner 进程已不在的锁才会被回收。
+
+### 多主控端调度
+通过 `PARENT_AGENT` / `PI_WORKER_CALLER` 环境变量追踪调用方（`trae`、`codex`、`claude-code`、`cursor`、`pi-recursive`、`cli`），面板可归因、`list --caller <name>` 可过滤。
+
+### 并行执行
+多个主控端会话可并发 —— 每个 run 有独立的 Git worktree、state 目录、per-run 文件锁，不同 run 互不碰撞，同一 run 不会被两个进程同时推进。`maxConcurrentRuns`（默认 4，范围 1–16）限制活动 run 数；超限 `prepare` 返回 `CONCURRENCY_LIMIT`。面板读 `state.json` 时容忍 JSON 解析失败，并发写入时快照不会崩。
+
+### 按难度自动选模型
+任务信号（goal 长度、验收条数、风险、约束、所需能力、验证数、路径广度）映射到 `low`/`medium`/`high` 难度，再选 `cheap`/`standard`/`premium` profile。同档内 `task.domain`（或推断的领域）软匹配 `profile.strengths`。用 `--profile <name>` 强制；不写 `costTier` 即关闭自动选择。
+
+### 多 CLI 后端
+除默认 Pi 后端外，profile 可设 `adapter: kimi | trae | qoder` 驱动其他编码 CLI（Kimi Code CLI、Trae CLI、Qoder CLI）。跨 adapter fallback 无缝工作。详见 [`references/provider-configuration.md`](./references/provider-configuration.md)。
+
+### 成本与节省指标
+每个 run 记录 Pi token 用量（输入/输出/缓存）、位移的主控端 credits、等价主控端 credits、节省率、订阅额度占比。面板展示跨 run 的平均节省率和 cohort 建议。对没有 token 用量的 adapter（Kimi/Trae/Qoder），指标优雅降级（`节省率 = null`，建议 = `no-usage-data-available`）。
+
+### 实时监控面板
+HTTP 服务，带刷新按钮、汇总卡片、可过滤 run 表（按 caller、状态、自由文本）、可展开详情行、亮/暗主题，以及 "Connection status" tab 展示 CLI adapter 与 profile 凭证健康度。
 
 ## 前置条件
 
@@ -72,6 +105,19 @@ pi-worker --help
 ```
 
 > **路线图**：首个 npm 版本发布后，会增加 Homebrew tap（`brew tap hLxiao9/pi-delegate && brew install pi-delegate`）与 `curl | sh` 一行安装脚本。
+
+## 首次配置
+
+`npm install -g pi-delegate` 会通过 `postinstall` 钩子自动运行 `node scripts/install-config.mjs`，把默认配置合并进 `~/.config/pi-worker/config.json`，并把 Volcengine provider 合并进 `~/.pi/agent/models.json`。合并是幂等的 —— 你已有的 profile、rate card、subscription 都会保留。
+
+如果自动配置没有跑（比如 `npm install --ignore-scripts`、沙箱包管理器或 tarball 安装），手动执行：
+
+```bash
+node scripts/install-config.mjs   # 合并默认配置；绝不覆盖用户已有改动
+pi-worker init                    # 交互式选择 provider + 凭证状态报告
+```
+
+> **`apiKeyEnv` 契约警告**：`~/.config/pi-worker/config.json` 里的 `apiKeyEnv` 字段与 `~/.pi/agent/models.json` 里的 `$VAR` 引用必须指向**同一个**环境变量名。名字不一致（例如 config 里写 `apiKeyEnv: VOLCENGINE_API_KEY`，但 models.json 里写 `$API_KEY`）会在运行时静默 401。`pi-worker doctor` 会检测这种情况并给出正确名字的建议。
 
 ## 快速开始
 
@@ -233,7 +279,7 @@ pi-delegate **不**自己管理模型凭证 —— 那是 Pi 的职责。流程�
    ```bash
    pi --no-extensions --no-skills --no-prompt-templates --no-themes --no-context-files --no-approve --list-models
    ```
-3. **把这些模型映射成 pi-delegate profile**，写到 `~/.config/pi-worker/config.json`。每个 profile 从 Pi 的注册表里挑一个 `provider` + `model`，并打上 `costTier`（`cheap` / `standard` / `premium`）、`strengths`（领域）、`modalities` 标签。默认带 6 个 profile（`volcengine`、`deepseek`、`kimi`、`minimax-m3`、`gemini-vision`、`gpt-image`）—— 完整表格和添加自定义 profile 的可复制 JSON 片段见 [`references/provider-configuration.md`](./references/provider-configuration.md)。
+3. **把这些模型映射成 pi-delegate profile**，写到 `~/.config/pi-worker/config.json`。每个 profile 从 Pi 的注册表里挑一个 `provider` + `model`，并打上 `costTier`（`cheap` / `standard` / `premium`）、`strengths`（领域）、`modalities` 标签。默认带 9 个 profile（`volcengine`、`deepseek`、`kimi`、`minimax-m3`、`gemini-vision`、`gpt-image`、`kimi-cli`、`trae-cli`、`qoder-cli`）—— 完整表格和添加自定义 profile 的可复制 JSON 片段见 [`references/provider-configuration.md`](./references/provider-configuration.md)。
 4. **用 `pi-worker doctor` 校验** —— 它一次过检查 Node、Git、Pi、凭证、模型可用性、task schema。
 
 > **提示**：pi-delegate 会按任务难度自动选 profile（`low → cheap`、`medium → standard`、`high → premium`）。如果想强制用某个 profile（比如你只有 MiniMax 凭证），给 `doctor` / `prepare` 传 `--profile minimax-m3`。
