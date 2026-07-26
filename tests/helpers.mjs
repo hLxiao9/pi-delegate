@@ -34,6 +34,12 @@ export async function runProcess(command, args = [], options = {}) {
     child.stderr.on('data', (chunk) => { stderr += chunk; });
     child.on('error', reject);
     child.on('close', (code, signal) => resolve({ code, signal, stdout, stderr }));
+    // If the child exits very quickly (common on Linux CI for negative tests),
+    // the pipe closes before our stdin.end() write completes and emits EPIPE.
+    // Swallow it - stdout/stderr/close are what we actually care about.
+    child.stdin.on('error', (err) => {
+      if (err.code !== 'EPIPE') throw err;
+    });
     child.stdin.end(options.input ?? '');
   });
 }
