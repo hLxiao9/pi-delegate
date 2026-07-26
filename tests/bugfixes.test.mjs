@@ -9,11 +9,12 @@
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { installDefaultConfiguration, resolveWorkerPaths } from '../lib/config.mjs';
 import { makeTempDir, initGitRepo, runNode, runProcess, writeExecutable } from './helpers.mjs';
 
-const skillRoot = path.resolve(new URL('..', import.meta.url).pathname);
+const skillRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const cli = path.join(skillRoot, 'scripts', 'pi-worker.mjs');
 
 // === Bug 1: Kimi TOML illegal header fix verification ===

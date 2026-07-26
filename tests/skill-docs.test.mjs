@@ -9,9 +9,10 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
-const root = path.resolve(new URL('..', import.meta.url).pathname);
+const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 
 test('SKILL frontmatter is discoverable and contains only name and description', async () => {
   const source = await readFile(path.join(root, 'SKILL.md'), 'utf8');

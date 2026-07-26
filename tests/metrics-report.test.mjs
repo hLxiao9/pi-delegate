@@ -9,6 +9,7 @@
 import assert from 'node:assert/strict';
 import { access, appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { snapshotCodexUsage, usageDelta } from '../lib/codex-usage.mjs';
 import { priceAtSolRate } from '../lib/metrics.mjs';
@@ -16,7 +17,7 @@ import { transition, updateRun } from '../lib/state.mjs';
 import { runNode } from './helpers.mjs';
 import { cli, createReviewedFixture } from './workflow-fixture.mjs';
 
-const skillRoot = path.resolve(new URL('..', import.meta.url).pathname);
+const skillRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const meter = path.join(skillRoot, 'scripts', 'codex-meter.mjs');
 
 function tokenEvent(input, cached, output) {

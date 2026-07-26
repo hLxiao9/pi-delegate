@@ -9,13 +9,14 @@
 import assert from 'node:assert/strict';
 import { access, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { installDefaultConfiguration, resolveWorkerPaths } from '../lib/config.mjs';
 import { abortActiveProcesses, runProcess } from '../lib/process.mjs';
 import { createRun, loadRun, transition, updateRun, withRunLock } from '../lib/state.mjs';
 import { makeTempDir, runNode, writeExecutable } from './helpers.mjs';
 
-const root = path.resolve(new URL('..', import.meta.url).pathname);
+const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const cli = path.join(root, 'scripts', 'pi-worker.mjs');
 
 async function fixture() {
