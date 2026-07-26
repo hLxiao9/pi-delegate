@@ -94,7 +94,7 @@ test('GET / returns live HTML with refresh button and dashboard-body', async () 
     assert.equal(status, 200);
     assert.match(text, /Pi Worker 监控台/);
     assert.match(text, /html-run/);
-    assert.match(text, /id="refresh-btn"/);
+    assert.match(text, /class="panel-refresh-btn"/);
     assert.match(text, /id="dashboard-body"/);
     assert.match(text, /\/api\/fragment/);
   } finally {
@@ -199,7 +199,7 @@ test('renderDashboardFragment escapes HTML in runId', () => {
 test('renderDashboardHtml with live option includes refresh button', () => {
   const state = { runId: 'live-run', status: 'integrated', caller: 'trae', provider: 'p', model: 'm', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), revisionRound: 0, fallbackUsed: false, implementationCommit: null, integratedCommit: null, sourceBranch: null, workerBranch: null, transitions: [] };
   const html = renderDashboardHtml([state], [null], new Date().toISOString(), { live: true });
-  assert.match(html, /id="refresh-btn"/);
+  assert.match(html, /class="panel-refresh-btn"/);
   assert.match(html, /id="dashboard-body"/);
   assert.match(html, /\/api\/fragment/);
 });
@@ -368,7 +368,7 @@ test('GET / returns the connections panel HTML alongside the existing dashboard 
     const { status, text } = await fetchText(url + '/');
     assert.equal(status, 200);
     // 既有的现场化元素保留
-    assert.match(text, /id="refresh-btn"/);
+    assert.match(text, /class="panel-refresh-btn"/);
     assert.match(text, /id="dashboard-body"/);
     // 新增的双 tab + 两侧面板
     assert.match(text, /id="tab-btn-dashboard"/);

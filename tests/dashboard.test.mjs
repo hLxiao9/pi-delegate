@@ -424,6 +424,25 @@ test('renderDashboardHtml (live) renders two tab buttons with required labels', 
   assert.match(html, /CLI \/ 模型使用统计/);
 });
 
+test('renderDashboardHtml (live) renders a menubar with tab buttons and theme button', () => {
+  const html = renderDashboardHtml([], [], new Date().toISOString(), { live: true, connections: { adapters: [], profiles: [] } });
+  assert.match(html, /<nav class="menubar"/);
+  assert.match(html, /id="tab-btn-dashboard"/);
+  assert.match(html, /id="tab-btn-connections"/);
+  assert.match(html, /id="theme-btn"/);
+});
+
+test('renderDashboardHtml (live) renders per-panel refresh buttons', () => {
+  const html = renderDashboardHtml([], [], new Date().toISOString(), { live: true, connections: { adapters: [], profiles: [] } });
+  assert.equal((html.match(/class="panel-refresh-btn"/g) || []).length, 2);
+  assert.ok(!html.includes('id="refresh-btn"'));
+});
+
+test('bindDashboardEvents null-check present in inline script', () => {
+  const html = renderDashboardHtml([], [], new Date().toISOString(), { live: true, connections: { adapters: [], profiles: [] } });
+  assert.match(html, /text && caller && status/);
+});
+
 test('renderDashboardHtml (live) localStorage persistence logic present in inline script', () => {
   const html = renderDashboardHtml([], [], new Date().toISOString(), { live: true, connections: { adapters: [], profiles: [] } });
   assert.match(html, /pi-worker-active-tab/);
@@ -457,8 +476,10 @@ test('renderDashboardHtml (static) keeps existing behavior (no refresh button, n
   const state = { runId: 'st', status: 'integrated', caller: 'trae', provider: 'p', model: 'm', createdAt: '2026-07-25T00:00:00.000Z', updatedAt: '2026-07-25T00:00:00.000Z', revisionRound: 0, fallbackUsed: false, implementationCommit: null, integratedCommit: null, sourceBranch: null, workerBranch: null, transitions: [] };
   const html = renderDashboardHtml([state], [null], new Date().toISOString());
   assert.ok(!html.includes('id="refresh-btn"'), '静态 HTML 不应有刷新按钮');
+  assert.ok(!html.includes('panel-refresh-btn'), '静态 HTML 不应有面板刷新按钮');
   assert.ok(!html.includes('id="dashboard-body"'), '静态 HTML 不应有 dashboard-body wrapper');
-  // 但应有 tabs
+  // 但应有 menubar 和 tabs
+  assert.match(html, /class="menubar"/);
   assert.match(html, /tab-btn-dashboard/);
   assert.match(html, /tab-btn-connections/);
 });
