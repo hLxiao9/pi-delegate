@@ -3,7 +3,17 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 import { resolveWorkerPaths } from '../lib/config.mjs';
-import { dashboardCommand, inspectCommand, listCommand, renderDashboardHtml, summarizeState } from '../lib/dashboard.mjs';
+import {
+  buildConnectionsList,
+  buildProviderModelAggregation,
+  computeRelevantProfileNames,
+  dashboardCommand,
+  inspectCommand,
+  listCommand,
+  renderConnectionsPanelHtml,
+  renderDashboardHtml,
+  summarizeState,
+} from '../lib/dashboard.mjs';
 import { makeTempDir } from './helpers.mjs';
 
 async function seedRun(paths, overrides = {}) {
@@ -226,4 +236,229 @@ test('list tolerates concurrent state.json writes (JSON parse errors skipped)', 
   // 截断的 run 被跳过,good-run 仍正常返回
   assert.equal(result.count, 1);
   assert.equal(result.runs[0].runId, 'good-run');
+});
+
+// === dashboard-conn-tab-20260726: provider+model aggregation ===
+
+test('buildProviderModelAggregation groups runs by provider+model deterministically', () => {
+  // 最小化的行结构,只覆盖 buildProviderModelAggregation 关心的字段
+  const rows = [
+    { runId: 'a', caller: 'trae', provider: 'volcengine-plan', model: 'ark-latest', createdAt: '2026-07-20T00:00:00.000Z', piRequests: 1, piInput: 100, piOutput: 50, piDuration: 2000, equivalentCredits: 0.1, savingRate: 0.4 },
+    { runId: 'b', caller: 'codex', provider: 'volcengine-plan', model: 'ark-latest', createdAt: '2026-07-22T00:00:00.000Z', piRequests: 2, piInput: 200, piOutput: 100, piDuration: 3000, equivalentCredits: 0.2, savingRate: 0.6 },
+    { runId: 'c', caller: 'trae', provider: 'kimi', model: 'kimi-for-coding', createdAt: '2026-07-23T00:00:00.000Z', piRequests: 0, piInput: 0, piOutput: 0, piDuration: 0, equivalentCredits: 0, savingRate: null },
+  ];
+  const groups = buildProviderModelAggregation(rows);
+  assert.equal(groups.length, 2, '应该按 provider+model 分两组');
+  const volcengine = groups.find((g) => g.provider === 'volcengine-plan' && g.model === 'ark-latest');
+  const kimi = groups.find((g) => g.provider === 'kimi' && g.model === 'kimi-for-coding');
+  assert.ok(volcengine, '必须存在 volcengine-plan/ark-latest 组');
+  assert.ok(kimi, '必须存在 kimi/kimi-for-coding 组');
+  assert.equal(volcengine.runCount, 2);
+  assert.equal(volcengine.totalPiRequests, 3);
+  assert.equal(volcengine.totalPiInput, 300);
+  assert.equal(volcengine.totalPiOutput, 150);
+  assert.equal(volcengine.totalPiDuration, 5000);
+  assert.ok(Math.abs(volcengine.totalEquivalentCredits - 0.3) < 1e-9);
+  assert.ok(Math.abs(volcengine.meanSavingRate - 0.5) < 1e-9);
+  assert.equal(volcengine.lastUsed, '2026-07-22T00:00:00.000Z');
+  assert.equal(kimi.runCount, 1);
+  assert.equal(kimi.totalPiRequests, 0);
+  assert.equal(kimi.meanSavingRate, null);
+});
+
+test('buildProviderModelAggregation returns empty array for empty rows', () => {
+  const groups = buildProviderModelAggregation([]);
+  assert.deepEqual(groups, []);
+});
+
+test('buildProviderModelAggregation sorts by runCount desc then lastUsed desc', () => {
+  const mk = (runId, provider, model, createdAt) => ({ runId, caller: 'trae', provider, model, createdAt, piRequests: 0, piInput: 0, piOutput: 0, piDuration: 0, equivalentCredits: 0, savingRate: null });
+  const rows = [
+    mk('a', 'p1', 'm1', '2026-07-02T00:00:00.000Z'),
+    mk('b', 'p1', 'm1', '2026-07-03T00:00:00.000Z'),
+    mk('c', 'p2', 'm2', '2026-07-04T00:00:00.000Z'),
+  ];
+  const groups = buildProviderModelAggregation(rows);
+  assert.equal(groups.length, 2);
+  assert.equal(groups[0].runCount, 2);
+  assert.equal(groups[1].runCount, 1);
+});
+
+// === dashboard-conn-tab-20260726: connections list & panel ===
+
+test('buildConnectionsList computes credentialAvailable from env keys', () => {
+  const rawConfig = {
+    profiles: {
+      volcengine: { provider: 'volcengine-plan', model: 'ark-latest', apiKeyEnv: 'VOLCENGINE_API_KEY', adapter: 'pi' },
+      kimi: { provider: 'kimi-coding', model: 'kimi-for-coding', apiKeyEnv: 'KIMI_API_KEY', adapter: 'kimi' },
+      trae: { provider: 'trae', model: 'trae-default', apiKeyEnv: 'TRAE_CLI_TOKEN', adapter: 'trae' },
+    },
+  };
+  const env = { VOLCENGINE_API_KEY: 'redacted-value', TRAE_CLI_TOKEN: '' };
+  const profiles = buildConnectionsList(env, rawConfig);
+  const volcengine = profiles.find((p) => p.name === 'volcengine');
+  const kimi = profiles.find((p) => p.name === 'kimi');
+  const trae = profiles.find((p) => p.name === 'trae');
+  assert.ok(volcengine.credentialAvailable, 'volcengine 应该视为已配置');
+  assert.equal(volcengine.hintType, 'none');
+  assert.equal(volcengine.hint, null);
+  assert.ok(!kimi.credentialAvailable, 'kimi 未配置');
+  assert.equal(kimi.hintType, 'env');
+  assert.ok(kimi.hint.includes('export KIMI_API_KEY='));
+  assert.ok(kimi.hint.includes('YOUR_KEY_HERE'));
+  // 严禁把真实 env 值透出到 hint
+  assert.ok(!JSON.stringify(kimi).includes('redacted-value'));
+  // trae 即使 token 字符串为空,凭据视为未配置;hintType 是 oauth
+  assert.ok(!trae.credentialAvailable);
+  assert.equal(trae.hintType, 'oauth');
+  assert.ok(trae.hint.includes('traecli'));
+});
+
+test('buildConnectionsList returns empty array when config missing', () => {
+  assert.deepEqual(buildConnectionsList({}, null), []);
+  assert.deepEqual(buildConnectionsList({}, {}), []);
+  assert.deepEqual(buildConnectionsList({}, { profiles: 'not-an-object' }), []);
+});
+
+test('computeRelevantProfileNames filters out unused unconfigured profiles', async () => {
+  const rawConfig = {
+    defaultProfile: 'm3',
+    profiles: {
+      m3: { provider: 'm3-corp', model: 'm3-model', apiKeyEnv: 'MINIMAX_CN_API_KEY', adapter: 'pi', fallbackProfiles: ['kimi'] },
+      kimi: { provider: 'kimi', model: 'kimi-for-coding', apiKeyEnv: 'KIMI_API_KEY', adapter: 'kimi' },
+      volcengine: { provider: 'volcengine-plan', model: 'ark-latest', apiKeyEnv: 'VOLCENGINE_API_KEY', adapter: 'pi' },
+    },
+  };
+  // env 仅提供第一个 key;其余两个视为未配置
+  const env = { MINIMAX_CN_API_KEY: 'redacted-value' };
+  // 隔离 points.stateRoot 到一个不存在的目录,排除来自历史 run 的影响
+  const paths = { stateRoot: path.join('/tmp', 'pi-worker-no-runs-' + Math.random().toString(16).slice(2)) };
+  const relevant = await computeRelevantProfileNames(paths, rawConfig, env);
+  // m3 有凭证 + 是默认 → 相关
+  assert.ok(relevant.has('m3'), 'm3 应该被标记为相关(凭据 + 默认)');
+  // kimi 是 m3 的 fallback → 相关
+  assert.ok(relevant.has('kimi'), 'kimi 应该被标记为相关(m3 的 fallback chain)');
+  // volcengine 无关:无凭证、非默认、非历史、非任何相关 profile 的 fallback
+  assert.ok(!relevant.has('volcengine'), 'volcengine 不应被标记为相关(未使用且未配置)');
+  // 验证 filter 联动 render:确保未相关 profile 的 hint 不会泄露到 HTML
+  const allProfiles = buildConnectionsList(env, rawConfig);
+  assert.equal(allProfiles.length, 3, 'buildConnectionsList 仍然返回 3 个(不做过滤)');
+  const filtered = allProfiles.filter((p) => relevant.has(p.name));
+  assert.deepEqual(filtered.map((p) => p.name).sort(), ['kimi', 'm3']);
+  const html = renderConnectionsPanelHtml([], filtered);
+  assert.ok(!html.includes('VOLCENGINE_API_KEY=YOUR_KEY_HERE'), '未相关 profile 的 export hint 不应渲染');
+  assert.ok(!html.match(/<code>volcengine<\/code>/), '未相关 profile 不应出现在表格里');
+  assert.match(html, /<code>m3<\/code>/, '相关 profile m3 应当出现');
+  assert.match(html, /<code>kimi<\/code>/, '相关 profile kimi 应当出现');
+});
+
+test('renderConnectionsPanelHtml renders adapters and profiles with required columns', () => {
+  const adapters = [
+    { name: 'pi', available: true, version: '1.2.3', stderr: '', bin: '/usr/bin/pi', reason: null },
+    { name: 'trae', available: false, version: null, stderr: 'not logged in', bin: '/usr/bin/traecli', reason: 'exit 1' },
+  ];
+  const profiles = [
+    { name: 'volcengine', provider: 'volcengine-plan', model: 'ark-latest', adapter: 'pi', apiKeyEnv: 'VOLCENGINE_API_KEY', credentialAvailable: true, hint: null, hintType: 'none' },
+    { name: 'kimi', provider: 'kimi', model: 'kimi-for-coding', adapter: 'kimi', apiKeyEnv: 'KIMI_API_KEY', credentialAvailable: false, hint: 'export KIMI_API_KEY=YOUR_KEY_HERE', hintType: 'env' },
+    { name: 'trae-cli', provider: 'trae', model: 'trae-default', adapter: 'trae', apiKeyEnv: 'TRAE_CLI_TOKEN', credentialAvailable: false, hint: 'Run `traecli` once interactively to complete enterprise login.', hintType: 'oauth' },
+  ];
+  const html = renderConnectionsPanelHtml(adapters, profiles);
+  assert.match(html, /CLI 适配器连接状态/);
+  assert.match(html, /Profile 凭证状态/);
+  // adapter columns
+  assert.match(html, /<th>名称<\/th>/);
+  assert.match(html, /<th>状态<\/th>/);
+  assert.match(html, /<th>版本<\/th>/);
+  assert.match(html, /<th>备注<\/th>/);
+  // profile columns
+  assert.match(html, /<th>Profile<\/th>/);
+  assert.match(html, /<th>Provider<\/th>/);
+  assert.match(html, /<th>Model<\/th>/);
+  assert.match(html, /<th>Adapter<\/th>/);
+  assert.match(html, /<th>凭证<\/th>/);
+  assert.match(html, /<th>操作<\/th>/);
+  // status badges
+  assert.match(html, /已连接/);
+  assert.match(html, /未连接/);
+  // credential states
+  assert.match(html, /已配置/);
+  assert.match(html, /未配置/);
+  // copy button + env hint
+  assert.match(html, /copy-btn/);
+  assert.match(html, /export KIMI_API_KEY=YOUR_KEY_HERE/);
+  // oauth hint for trae
+  assert.match(html, /Run `traecli` once interactively to complete enterprise login\./);
+});
+
+test('renderConnectionsPanelHtml sanitizes raw values to prevent XSS', () => {
+  const adapters = [{ name: '<img src=x>', available: true, version: '0.0.1', stderr: '', bin: 'a', reason: null }];
+  const profiles = [{ name: 'safe', provider: '<b>p</b>', model: '<b>m</b>', adapter: 'pi', apiKeyEnv: '<KEY>', credentialAvailable: false, hint: '<bad>', hintType: 'env' }];
+  const html = renderConnectionsPanelHtml(adapters, profiles);
+  assert.ok(!html.includes('<img src=x>'));
+  assert.ok(html.includes('&lt;img src=x&gt;'));
+  assert.ok(!html.includes('<bad>'));
+});
+
+test('renderConnectionsPanelHtml tolerates empty arrays and missing fields', () => {
+  const html = renderConnectionsPanelHtml([], []);
+  assert.match(html, /未注册任何 CLI 适配器/);
+  assert.match(html, /未发现任何 profile/);
+  const html2 = renderConnectionsPanelHtml(undefined, undefined);
+  assert.match(html2, /未注册任何 CLI 适配器/);
+});
+
+// === dashboard-conn-tab-20260726: two-tab HTML & localStorage ===
+
+test('renderDashboardHtml (live) renders two tab buttons with required labels', () => {
+  const state = { runId: 'live', status: 'integrated', caller: 'trae', provider: 'p', model: 'm', createdAt: '2026-07-25T00:00:00.000Z', updatedAt: '2026-07-25T00:00:00.000Z', revisionRound: 0, fallbackUsed: false, implementationCommit: null, integratedCommit: null, sourceBranch: null, workerBranch: null, transitions: [] };
+  const html = renderDashboardHtml([state], [null], '2026-07-25T00:00:00.000Z', {
+    live: true,
+    connections: { adapters: [], profiles: [] },
+  });
+  assert.match(html, /<button[^>]*id="tab-btn-dashboard"[^>]*>\u76d1\u63a7\u53f0<\/button>/);
+  assert.match(html, /<button[^>]*id="tab-btn-connections"[^>]*>\u8fde\u63a5\u60c5\u51b5<\/button>/);
+  assert.match(html, /<div[^>]*id="tab-dashboard"[^>]*class="tab-panel active"/);
+  assert.match(html, /<div[^>]*id="tab-connections"[^>]*class="tab-panel"/);
+  assert.match(html, /id="dashboard-body"/);
+  assert.match(html, /id="connections-body"/);
+  assert.match(html, /CLI \/ 模型使用统计/);
+});
+
+test('renderDashboardHtml (live) localStorage persistence logic present in inline script', () => {
+  const html = renderDashboardHtml([], [], new Date().toISOString(), { live: true, connections: { adapters: [], profiles: [] } });
+  assert.match(html, /pi-worker-active-tab/);
+  assert.match(html, /localStorage\.setItem\("pi-worker-active-tab"/);
+  assert.match(html, /localStorage\.getItem\("pi-worker-active-tab"/);
+  // Tab click handler 触发 selectTab
+  assert.match(html, /addEventListener\("click"/);
+});
+
+test('renderDashboardHtml includes the CLI/模型使用统计 section in live bodyHtml', () => {
+  const stateA = { runId: 'g1a', status: 'integrated', caller: 'trae', provider: 'p1', model: 'm1', createdAt: '2026-07-25T00:00:00.000Z', updatedAt: '2026-07-25T00:00:00.000Z', revisionRound: 0, fallbackUsed: false, implementationCommit: null, integratedCommit: null, sourceBranch: null, workerBranch: null, transitions: [] };
+  const stateB = { runId: 'g1b', status: 'integrated', caller: 'trae', provider: 'p1', model: 'm1', createdAt: '2026-07-25T01:00:00.000Z', updatedAt: '2026-07-25T01:00:00.000Z', revisionRound: 0, fallbackUsed: false, implementationCommit: null, integratedCommit: null, sourceBranch: null, workerBranch: null, transitions: [] };
+  const html = renderDashboardHtml([stateA, stateB], [null, null], '2026-07-25T01:00:00.000Z', { live: true, connections: { adapters: [], profiles: [] } });
+  assert.match(html, /CLI \/ 模型使用统计/);
+  // 该 section 含 provider/model 至少出现一次
+  assert.match(html, /p1/);
+  assert.match(html, /m1/);
+});
+
+test('renderDashboardHtml refresh handler fetches both /api/fragment and /api/connections', () => {
+  const state = { runId: 'live', status: 'integrated', caller: 'trae', provider: 'p', model: 'm', createdAt: '2026-07-25T00:00:00.000Z', updatedAt: '2026-07-25T00:00:00.000Z', revisionRound: 0, fallbackUsed: false, implementationCommit: null, integratedCommit: null, sourceBranch: null, workerBranch: null, transitions: [] };
+  const html = renderDashboardHtml([state], [null], '2026-07-25T00:00:00.000Z', { live: true, connections: { adapters: [], profiles: [] } });
+  assert.match(html, /"\/api\/fragment"/);
+  assert.match(html, /"\/api\/connections"/);
+  // 刷新处理函数里有 connections-body 替换
+  assert.match(html, /getElementById\("connections-body"\)/);
+  assert.match(html, /renderClientConnectionsPanel/);
+});
+
+test('renderDashboardHtml (static) keeps existing behavior (no refresh button, no dashboard-body wrapper)', () => {
+  const state = { runId: 'st', status: 'integrated', caller: 'trae', provider: 'p', model: 'm', createdAt: '2026-07-25T00:00:00.000Z', updatedAt: '2026-07-25T00:00:00.000Z', revisionRound: 0, fallbackUsed: false, implementationCommit: null, integratedCommit: null, sourceBranch: null, workerBranch: null, transitions: [] };
+  const html = renderDashboardHtml([state], [null], new Date().toISOString());
+  assert.ok(!html.includes('id="refresh-btn"'), '静态 HTML 不应有刷新按钮');
+  assert.ok(!html.includes('id="dashboard-body"'), '静态 HTML 不应有 dashboard-body wrapper');
+  // 但应有 tabs
+  assert.match(html, /tab-btn-dashboard/);
+  assert.match(html, /tab-btn-connections/);
 });
