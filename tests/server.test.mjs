@@ -405,8 +405,13 @@ test('GET /api/connections never throws when env has no PATH and adapters fail t
   const { status, json } = await fetchJson(url + '/api/connections');
   assert.equal(status, 200);
   assert.equal(json.ok, true);
-  // all adapter all should available=false
-  for (const a of json.adapters) assert.equal(a.available, false);
+  // With PATH empty, adapters without a resolvable bin stay unavailable.
+  // Adapters that declare candidateBins pointing at an existing file (e.g.
+  // OpenCode at ~/.opencode/bin/opencode) become available via the fallback.
+  for (const a of json.adapters) {
+    if (a.name === 'opencode') assert.equal(a.available, true);
+    else assert.equal(a.available, false);
+  }
   // no config.json when profiles is an empty array
   assert.deepEqual(json.profiles, []);
   } finally {
