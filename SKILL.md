@@ -20,9 +20,12 @@ The skill is parent-agnostic. Set `PARENT_AGENT` (and, when applicable, `PARENT_
 | `trae` | not yet implemented | Reports `available:false`; set `PARENT_AGENT=codex` or `claude-code` if you need usage numbers. |
 | `cursor` | not yet implemented | Same as `trae`. |
 | `pi-recursive` | not yet implemented | Use when one Pi delegates to another Pi; usage stays on the outer Pi. |
+| `workbuddy` | none | Dispatched from the WorkBuddy agent. Auto-detected when the `WORKBUDDY` (or `WORKBUDDY_AGENT`) env var is set; otherwise set `PARENT_AGENT=workbuddy` explicitly. |
 | `cli` | none | For ad-hoc shell invocations with no parent session to meter. |
 
-The `prepare` command records the resolved caller into `state.caller` (one of `trae`, `codex`, `claude-code`, `cursor`, `pi-recursive`, `cli`, `unknown`). The dashboard groups runs by caller. `list --caller <name>` filters accordingly.
+The `prepare` command records the resolved caller into `state.caller` (one of `trae`, `codex`, `claude-code`, `cursor`, `pi-recursive`, `workbuddy`, `cli`, `unknown`). The dashboard groups runs by caller and the Source column / filter recognises `workbuddy`. `list --caller <name>` filters accordingly.
+
+Caller resolution order: explicit `PARENT_AGENT` / `PI_WORKER_CALLER` → WorkBuddy shell marker (`WORKBUDDY` / `WORKBUDDY_AGENT`) → `cli`. When the WorkBuddy agent invokes pi-delegate, exporting `PARENT_AGENT=workbuddy` (or relying on the `WORKBUDDY` marker) makes the dashboard attribute runs to the **workbuddy** source instead of the generic `cli`.
 
 ## Automatic model selection by difficulty
 
@@ -138,9 +141,9 @@ Multiple parent-agent sessions (e.g. one Codex + one Claude Code, or several Tra
 The `maxConcurrentRuns` config (default 4, range 1-16) caps how many runs may be in an active state simultaneously; `prepare` rejects with `CONCURRENCY_LIMIT` when the cap is hit. Tune it to match your API rate limits and local resources. Pi itself is stateless across sessions (each `pi-worker run` spawns its own Pi process), so there is no global Pi lock.
 - `pi-worker inspect --id <run-id>` — full state, metrics, verification, review, and Pi usage totals.
 - `pi-worker dashboard [--output <file>]` — single-page HTML dashboard (summary cards + run table + expandable detail rows, filterable by caller and status). The generated HTML is a snapshot; rerun the command to refresh.
-- `pi-worker serve [--port <port>] [--no-open]` — start a live HTTP dashboard at `http://localhost:<port>/` (default port 7317). The page exposes a "Refresh" button that fetches `/api/fragment` and replaces the dashboard body in place; an ordinary browser reload (F5) also re-reads `~/.local/state/pi-worker/runs/`. Routes: `GET /` (HTML), `GET /api/fragment` (rendered HTML fragment for refresh), `GET /api/runs` (raw JSON of state + metrics), `GET /health`. Ctrl+C to stop. Use this for real-time monitoring; do **not** rely on `file://`-opened `dashboard.html` for fresh data.
+- `pi-worker serve [--port <port>] [--no-open]` — start a live HTTP dashboard at `http://localhost:<port>/` (default port 7317). The page exposes a "Refresh" button (per panel, at the top) that fetches `/api/fragment` and replaces the dashboard body in place, plus an **Auto-refresh (60s)** toggle (persisted in localStorage) that polls every 60s and also refreshes when the tab regains focus/visibility — a cheap alternative to a full browser reload (F5). Routes: `GET /` (HTML), `GET /api/fragment` (rendered HTML fragment for refresh), `GET /api/runs` (raw JSON of state + metrics), `GET /api/connections` (adapter + profile status), `GET /health`. Ctrl+C to stop. Use this for real-time monitoring; do **not** rely on `file://`-opened `dashboard.html` for fresh data.
 
-`prepare` records the invoking caller into `state.caller` from `PARENT_AGENT` / `PI_WORKER_CALLER` (`trae`, `codex`, `claude-code`, `cursor`, `pi-recursive`, `cli`; anything else becomes `unknown`). Set it in the environment that invokes `pi-worker prepare` so the dashboard can distinguish traffic sources.
+`prepare` records the invoking caller into `state.caller` from `PARENT_AGENT` / `PI_WORKER_CALLER` (`trae`, `codex`, `claude-code`, `cursor`, `pi-recursive`, `workbuddy`, `cli`; anything else becomes `unknown`). Set it in the environment that invokes `pi-worker prepare` so the dashboard can distinguish traffic sources.
 
 ## Final response
 

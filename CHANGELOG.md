@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Removed the opencode-only TTY model picker from `git-worker.mjs`; unified by the new chooser in `lib/environment.mjs`.
 - `free` cost tier is now a valid config tier (profiles can be opted into via `--profile` or used as fallback targets).
+- Token/duration usage now captured for **every** adapter (Pi, OpenCode, Kimi, Trae, Qoder), not just Pi: non-streaming adapters echo a `message_end` usage event into `pi-events.jsonl` so `readPiUsage` aggregates them uniformly. The dashboard "Token" / "duration" columns now reflect real per-connector numbers.
+- Dashboard labels are adapter-agnostic: "Pi Token" → "Token", "Pi duration" → "duration", "Pi call count" → "call count", "Pi-side balance" → "balance", and the per-run detail block is labeled "usage".
+- `workbuddy` is a recognised caller/source (Source column + filter + badge). It is auto-detected via the `WORKBUDDY` / `WORKBUDDY_AGENT` env var, or set explicitly with `PARENT_AGENT=workbuddy`.
+- Live dashboard adds an **Auto-refresh (60s)** toggle (persisted in localStorage) that polls `/api/fragment` + `/api/connections` every 60s and refreshes on tab focus/visibility; the per-panel "Refresh" button remains for manual in-place refresh without a full browser reload.
 
 ### Added
 - Per-run human-readable `worker.log` (`~/.local/state/pi-worker/runs/<run-id>/worker.log`): each `run`/`revise` tees NDJSON worker events into readable text (assistant text, tool calls/results, token totals). Does not affect the headless auto-loop.
