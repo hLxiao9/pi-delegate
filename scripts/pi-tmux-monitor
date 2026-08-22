@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+#
+# pi-delegate - multi-run worker log monitor (tmux)
+#
+# Opens a tmux session named "pi-delegate" with one pane per active pi-worker
+# run, each pane tailing that run's human-readable worker.log in real time.
+# This lets you watch many CLI workers (e.g. several OpenCode dispatches)
+# concurrently without disturbing the headless parent-agent loop.
+#
+# Usage:
+#   scripts/pi-tmux-monitor            # build/attach the monitor session
+#   scripts/pi-tmux-monitor --kill     # destroy the session
+#   scripts/pi-tmux-monitor --list     # print the runs it would monitor
+#
+# Env:
+#   PI_WORKER_STATE_DIR   override the state root (default ~/.local/state/pi-worker)
+#   PI_MONITOR_SESSION    tmux session name (default pi-delegate)
+#   PI_MONITOR_MAX        max panes (default 9; tmux gets unwieldy beyond that)
+#
+set -euo pipefail
+
+STATE_DIR="${PI_WORKER_STATE_DIR:-$HOME/.local/state/pi-worker}"
+SESSION="${PI_MONITOR_SESSION:-pi-delegate}"
+MAX_PANES="${PI_MONITOR_MAX:-9}"
+
+ACTIVE_STATES="prepared running verifying selfReviewing reviewing revising recovering"
+
+die() { echo "pi-tmux-monitor: $*" >&2; exit 1; }
+
+# --- collect active runs -------------------------------------------------
+collect_runs() {
+  local runs=()
+  local dir
+  [[ -d "$STATE_DIR/runs" ]] || return 0
+  for dir in "$STATE_DIR/runs"/*/; do
+    [[ -d "$dir" ]] || continue
+    local id
+    id="$(basename "$dir")"
+    local state_file="$dir/state.json"
+    local log_file="$dir/worker.log"
+    [[ -f "$log_file" ]] || continue
+    local status=""
+    if [[ -f "$state_file" ]]; then
+      status="$(grep -m1 '"status"' "$state_file" 2>/dev/null | sed -E 's/.*"status"[[:space:]]*:[[:space:]]*"([^"]+)".*/\1/')"
+    fi
+    # Include runs whose status is active, or (no state yet) logs touched <10 min ago.
+    local active=0
+    for s in $ACTIVE_STATES; do
+      [[ "$status" == "$s" ]] && active=1 && break
+    done
+    if [[ "$active" -eq 0 ]] && [[ -n "$status" ]]; then
+      continue
+    fi
+    if [[ "$active" -eq 0 ]]; then
+      # no status -> only show if log is fresh (likely mid-run before state flush)
+      local age=$(( $(date +%s) - $(stat -f %m "$log_file" 2>/dev/null || date +%s) ))
+      [[ "$age" -gt 600 ]] && continue
+    fi
+    runs+=("$id")
+  done
+  printf '%s\n' "${runs[@]}"
+}
+
+# --- commands ------------------------------------------------------------
+case "${1:-}" in
+  --kill)
+    tmux kill-session -t "$SESSION" 2>/dev/null || true
+    echo "pi-tmux-monitor: session '$SESSION' removed (if it existed)."
+    exit 0
+    ;;
+  --list)
+    echo "Active runs under $STATE_DIR/runs:"
+    while IFS= read -r id; do
+      [[ -n "$id" ]] && echo "  $id"
+    done < <(collect_runs)
+    exit 0
+    ;;
+esac
+
+command -v tmux >/dev/null 2>&1 || die "tmux is not installed (brew install tmux)."
+
+RUNS=()
+while IFS= read -r id; do
+  [[ -n "$id" ]] && RUNS+=("$id")
+done < <(collect_runs)
+
+if [[ "${#RUNS[@]}" -eq 0 ]]; then
+  die "no active runs with a worker.log found under $STATE_DIR/runs"
+fi
+
+if [[ "${#RUNS[@]}" -gt "$MAX_PANES" ]]; then
+  echo "pi-tmux-monitor: ${#RUNS[@]} runs found; showing first $MAX_PANES (raise PI_MONITOR_MAX)." >&2
+  RUNS=("${RUNS[@]:0:$MAX_PANES}")
+fi
+
+# If the session already exists, just attach (don't rebuild).
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+  echo "pi-tmux-monitor: attaching to existing session '$SESSION'."
+  exec tmux attach-session -t "$SESSION"
+fi
+
+# Build the session: first pane, then split for the rest.
+first="${RUNS[0]}"
+first_log="$STATE_DIR/runs/$first/worker.log"
+tmux new-session -d -s "$SESSION" -n "run:$first" "tail -f '$first_log'"
+
+for id in "${RUNS[@]:1}"; do
+  log="$STATE_DIR/runs/$id/worker.log"
+  tmux split-window -t "$SESSION" -h "tail -f '$log'"
+  tmux select-layout -t "$SESSION" tiled >/dev/null 2>&1 || true
+done
+tmux select-layout -t "$SESSION" tiled >/dev/null 2>&1 || true
+tmux set-option -t "$SESSION" mouse on >/dev/null 2>&1 || true
+
+echo "pi-tmux-monitor: monitoring ${#RUNS[@]} run(s) in tmux session '$SESSION'."
+echo "  attach:   tmux attach -t $SESSION"
+echo "  kill:     tmux kill-session -t $SESSION   (or: scripts/pi-tmux-monitor --kill)"
+exec tmux attach-session -t "$SESSION"

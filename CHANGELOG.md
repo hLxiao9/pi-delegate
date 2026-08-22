@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the opencode-only TTY model picker from `git-worker.mjs`; unified by the new chooser in `lib/environment.mjs`.
 - `free` cost tier is now a valid config tier (profiles can be opted into via `--profile` or used as fallback targets).
 
+### Added
+- Per-run human-readable `worker.log` (`~/.local/state/pi-worker/runs/<run-id>/worker.log`): each `run`/`revise` tees NDJSON worker events into readable text (assistant text, tool calls/results, token totals). Does not affect the headless auto-loop.
+- `scripts/pi-tmux-monitor`: tmux session with one pane per active run, each `tail -f`-ing its `worker.log`, for concurrent live monitoring of many CLI workers.
+
 ## [0.1.0] - 2026-07-25
 
 First public release. Closed-loop delegation to Pi CLI with isolation, independent verification, parent review, self-review (token saver), live monitoring dashboard, multi-parent dispatch, difficulty-based model selection, and multi-CLI adapter support (Pi / Kimi / Trae / Qoder).

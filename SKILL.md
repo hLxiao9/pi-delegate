@@ -115,6 +115,22 @@ The worker persists every run under `~/.local/state/pi-worker/runs/<run-id>/` (s
 
 - `pi-worker list [--status <status>] [--caller <caller>] [--running]` — JSON array of runs. `--running` filters to active states (prepared/running/verifying/reviewing/revising).
 
+## Live worker monitoring (tmux)
+
+Every `run`/`revise` writes a **human-readable** stream to `~/.local/state/pi-worker/runs/<run-id>/worker.log` (one line per worker event: assistant text, tool calls/results, token totals — no raw JSON). The parent-agent auto-loop is unaffected; this is purely an observability companion.
+
+To watch many CLI workers concurrently (e.g. several OpenCode dispatches at once), use the bundled tmux monitor:
+
+```
+scripts/pi-tmux-monitor            # open a tmux session with one pane per active run, tail -f its worker.log
+scripts/pi-tmux-monitor --list     # print the runs it would monitor
+scripts/pi-tmux-monitor --kill     # tear down the session
+```
+
+It auto-discovers active runs (state `status` ∈ prepared/running/verifying/selfReviewing/reviewing/revising, or a fresh `worker.log` with no state yet), opens one pane each via `tmux split-window` + `tiled` layout, and attaches. Re-running attaches to the existing session instead of rebuilding. Requires `tmux` (`brew install tmux`). For a single run you can also just `tail -f ~/.local/state/pi-worker/runs/<run-id>/worker.log` in any terminal.
+
+To review a finished OpenCode conversation inside the OpenCode client itself: `opencode session` lists sessions, `opencode export <id>` dumps the full transcript as JSON. Note `opencode run` (headless, used by pi-delegate) may not always register an interactive session — the `worker.log` is the authoritative per-run transcript either way.
+
 ## Parallel execution
 
 Multiple parent-agent sessions (e.g. one Codex + one Claude Code, or several Trae windows) can run pi-worker concurrently. Each run gets an isolated Git worktree, state directory, and per-run file lock (`~/.local/state/pi-worker/runs/<id>/state.lock`), so different runs never collide and the same run is never advanced by two processes at once. `list --running` shows active runs; the dashboard reads state.json with JSON-parse tolerance so a snapshot never crashes on a concurrent write.
