@@ -381,10 +381,10 @@ test('GET /api/connections returns ok:true with adapters[] and profiles[]', asyn
   assert.ok(typeof json.generatedAt === 'string' && json.generatedAt.length > 0);
   assert.ok(Array.isArray(json.adapters));
   assert.ok(Array.isArray(json.profiles));
-  // should at least contain 4 items adapter (pi/kimi/trae/qoder)
-  assert.ok(json.adapters.length >= 4, `expected >=4 adapters, got ${json.adapters.length}`);
+  // should at least contain known adapters (pi/kimi/trae/qoder/opencode)
+  assert.ok(json.adapters.length >= 5, `expected >=5 adapters, got ${json.adapters.length}`);
   const adapterNames = json.adapters.map((a) => a.name).sort();
-  assert.deepEqual(adapterNames, ['kimi', 'pi', 'qoder', 'trae']);
+  assert.deepEqual(adapterNames, ['kimi', 'opencode', 'pi', 'qoder', 'trae']);
   // profile must contain seed the three written
   const profileNames = json.profiles.map((p) => p.name).sort();
   assert.deepEqual(profileNames, ['kimi', 'trae-cli', 'volcengine']);

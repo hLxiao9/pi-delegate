@@ -84,11 +84,12 @@ test('resolveBin uses adapter-specific env var', () => {
   assert.equal(resolveBin(qoderAdapter, { PI_WORKER_QODER_BIN: '/custom/qoder' }), '/custom/qoder');
 });
 
-test('listAdapters returns all 4 adapters', () => {
+test('listAdapters returns all known adapters', () => {
   const list = listAdapters();
-  assert.equal(list.length, 4);
   const names = list.map((a) => a.name).sort();
-  assert.deepEqual(names, ['kimi', 'pi', 'qoder', 'trae']);
+  const expected = ['kimi', 'opencode', 'pi', 'qoder', 'trae'].sort();
+  assert.deepEqual(names, expected);
+  assert.equal(list.length, expected.length);
 });
 
 test('PiAdapter.versionCommand returns --version argv', () => {
