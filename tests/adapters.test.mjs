@@ -97,7 +97,7 @@ test('PiAdapter.versionCommand returns --version argv', () => {
   assert.deepEqual(cmd.argv, ['--version']);
 });
 
-test('KimiAdapter.invokeCommand returns -p prompt argv', () => {
+test('KimiAdapter.invokeCommand passes prompt via -p argv (kimi has no stdin-prompt)', () => {
   const adapter = getAdapter('kimi');
   const cmd = adapter.invokeCommand({
   state: { runId: 'test-run', worktreePath: '/tmp/wt' },
@@ -107,11 +107,15 @@ test('KimiAdapter.invokeCommand returns -p prompt argv', () => {
   sessionDir: '/tmp/session',
   mode: 'run',
   });
-  assert.deepEqual(cmd.argv, ['-p', 'hello world']);
-  assert.equal(cmd.input, null);
+  // Kimi v0.29.1 has no stdin-prompt support (`kimi -` / `-p -` both fail),
+  // so the prompt must travel as the `-p` argv value.
+  const idx = cmd.argv.indexOf('-p');
+  assert.ok(idx !== -1, 'kimi must use -p for the prompt');
+  assert.equal(cmd.argv[idx + 1], 'hello world');
+  assert.equal(cmd.input, '');
 });
 
-test('TraeAdapter.invokeCommand returns -p --json --yolo argv', () => {
+test('TraeAdapter.invokeCommand passes prompt via stdin (no argv leak)', () => {
   const adapter = getAdapter('trae');
   const cmd = adapter.invokeCommand({
   state: { runId: 'test-run', worktreePath: '/tmp/wt' },
@@ -121,16 +125,20 @@ test('TraeAdapter.invokeCommand returns -p --json --yolo argv', () => {
   sessionDir: '/tmp/session',
   mode: 'run',
   });
-  assert.ok(cmd.argv.includes('-p'));
-  assert.ok(cmd.argv.includes('hello'));
+  // Prompt must NOT appear in argv (prevents ps/proc leakage)
+  assert.ok(!cmd.argv.includes('hello'));
+  assert.ok(!cmd.argv.includes('-p'));
   assert.ok(cmd.argv.includes('--json'));
   assert.ok(cmd.argv.includes('--yolo'));
   assert.ok(cmd.argv.some((a) => a.startsWith('--allowed-tool')));
   assert.ok(cmd.argv.includes('--session-id'));
   assert.ok(cmd.argv.includes('test-run'));
+  // stdin marker must be the last argv element (after all flags)
+  assert.equal(cmd.argv[cmd.argv.length - 1], '-');
+  assert.equal(cmd.input, 'hello');
 });
 
-test('QoderAdapter.invokeCommand returns -p --output-format=json --yolo argv', () => {
+test('QoderAdapter.invokeCommand passes prompt via stdin (no argv leak)', () => {
   const adapter = getAdapter('qoder');
   const cmd = adapter.invokeCommand({
   state: { runId: 'test-run', worktreePath: '/tmp/wt' },
@@ -140,11 +148,35 @@ test('QoderAdapter.invokeCommand returns -p --output-format=json --yolo argv', (
   sessionDir: '/tmp/session',
   mode: 'run',
   });
-  assert.ok(cmd.argv.includes('-p'));
-  assert.ok(cmd.argv.includes('hello'));
+  // Prompt must NOT appear in argv (prevents ps/proc leakage)
+  assert.ok(!cmd.argv.includes('-p'));
+  assert.ok(!cmd.argv.includes('hello'));
   assert.ok(cmd.argv.includes('--output-format=json'));
   assert.ok(cmd.argv.includes('--yolo'));
   assert.ok(cmd.argv.some((a) => a.startsWith('--allowed-tool')));
+  // stdin marker must be the last argv element (after all flags)
+  assert.equal(cmd.argv[cmd.argv.length - 1], '-');
+  assert.equal(cmd.input, 'hello');
+});
+
+test('QoderAdapter.invokeCommand places --max-turns before stdin marker', () => {
+  const adapter = getAdapter('qoder');
+  const cmd = adapter.invokeCommand({
+  state: { runId: 'test-run', worktreePath: '/tmp/wt' },
+  profile: { provider: 'qoder', model: 'default' },
+  prompt: 'hello',
+  config: { limits: { piMaxTurns: 25 } },
+  sessionDir: '/tmp/session',
+  mode: 'run',
+  });
+  const maxTurnsIdx = cmd.argv.indexOf('--max-turns');
+  const stdinIdx = cmd.argv.indexOf('-');
+  assert.ok(maxTurnsIdx !== -1, '--max-turns must be present');
+  assert.equal(cmd.argv[maxTurnsIdx + 1], '25');
+  // --max-turns must come before the stdin marker so CLI parsers see it as a flag
+  assert.ok(maxTurnsIdx < stdinIdx, '--max-turns must precede the stdin marker');
+  assert.equal(cmd.argv[cmd.argv.length - 1], '-');
+  assert.equal(cmd.input, 'hello');
 });
 
 test('PiAdapter.parseOutput extracts text from NDJSON', () => {

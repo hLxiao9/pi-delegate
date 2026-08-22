@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Syntax + tests (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [22.23.0]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node-version }}
+          # No cache: npm — this project has zero runtime deps and no lockfile.
+
+      - name: Syntax check
+        run: npm run check:syntax
+
+      - name: Test
+        run: npm test
+
+      - name: Test summary
+        if: always()
+        run: |
+          {
+            echo "## Test results"
+            echo ""
+            echo '```'
+            npm test 2>&1 | tail -12 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

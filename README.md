@@ -1,5 +1,7 @@
 # pi-delegate
 
+> **Save 80%+ on AI coding costs** by delegating bounded implementation tasks to cheap models (Pi / MiniMax / DeepSeek / GLM), while your main agent (Codex / Claude Code / Trae / Cursor) keeps architecture, review, and commit authority.
+
 > Parent-agent-owned Pi implementation worker: delegate bounded code tasks to Pi CLI with isolation, verification, review, and a live monitoring dashboard.
 
 [English](./README.md) | [简体中文](./README.zh-CN.md)

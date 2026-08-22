@@ -10,13 +10,14 @@ import assert from 'node:assert/strict';
 import { access, readFile, writeFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { installDefaultConfiguration, resolveWorkerPaths } from '../lib/config.mjs';
 import { createRun, loadRun } from '../lib/state.mjs';
 import { recoverCommand } from '../lib/recovery.mjs';
 import { makeTempDir, initGitRepo, runNode, runProcess, writeExecutable } from './helpers.mjs';
 
-const skillRoot = path.resolve(new URL('..', import.meta.url).pathname);
+const skillRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const cli = path.join(skillRoot, 'scripts', 'pi-worker.mjs');
 
 async function recoveryFixture(status = 'running', changed = false, failureCode = 'PI_INTERRUPTED') {

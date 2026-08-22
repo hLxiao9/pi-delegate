@@ -9,10 +9,11 @@
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { installDefaultConfiguration, resolveWorkerPaths } from '../lib/config.mjs';
 import { makeTempDir, initGitRepo, runNode, runProcess, writeExecutable } from './helpers.mjs';
 
-export const skillRoot = path.resolve(new URL('..', import.meta.url).pathname);
+export const skillRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 export const cli = path.join(skillRoot, 'scripts', 'pi-worker.mjs');
 
 export async function createReviewedFixture({ dirty = false } = {}) {

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security report (do NOT open a public issue)
+    url: https://github.com/hLxiao9/pi-delegate/security/advisories/new
+    about: Report security vulnerabilities privately via GitHub Security Advisories.
+  - name: Questions & discussions
+    url: https://github.com/hLxiao9/pi-delegate/discussions
+    about: Ask questions and discuss ideas in GitHub Discussions.

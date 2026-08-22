@@ -9,12 +9,13 @@
 import assert from 'node:assert/strict';
 import { readFile, rm, writeFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { installDefaultConfiguration, resolveWorkerPaths } from '../lib/config.mjs';
 import { transition, updateRun } from '../lib/state.mjs';
 import { makeTempDir, initGitRepo, runNode, runProcess, writeExecutable } from './helpers.mjs';
 
-const skillRoot = path.resolve(new URL('..', import.meta.url).pathname);
+const skillRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const cli = path.join(skillRoot, 'scripts', 'pi-worker.mjs');
 
 async function fixture({ piMode = 'always-correct' } = {}) {
@@ -208,4 +209,30 @@ test('test credential placeholders do not trigger the generic secret guardrail',
   const result = await runNode(cli, ['verify', '--id', item.runId], { env: item.env });
   assert.equal(result.code, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).passed, true);
+});
+
+test('deny-list fail-closed: blocks .env, credentials, and secrets cross-platform', async () => {
+  const item = await fixture();
+  await forceVerifying(item);
+  // Create sensitive files inside src/ (passes allow-list src/**) with names
+  // that match forbidden patterns from the default config and task.
+  await mkdir(path.join(item.worktree, 'src', 'sub'), { recursive: true });
+  await writeFile(path.join(item.worktree, 'src', '.env'), '# placeholder\n');
+  await writeFile(path.join(item.worktree, 'src', '.env.local'), '# placeholder\n');
+  await writeFile(path.join(item.worktree, 'src', 'credentials.yaml'), '# placeholder\n');
+  await writeFile(path.join(item.worktree, 'src', 'secrets.json'), '{}\n');
+  await writeFile(path.join(item.worktree, 'src', 'sub', '.env.local'), '# placeholder\n');
+  const result = await runNode(cli, ['verify', '--id', item.runId], { env: item.env });
+  assert.equal(result.code, 1);
+  const error = JSON.parse(result.stderr);
+  assert.equal(error.error.code, 'SECURITY_BLOCKED');
+  const pathIssues = error.error.details.issues.filter((i) => i.code === 'PATH_OUT_OF_SCOPE');
+  assert.ok(pathIssues.length > 0, 'should have PATH_OUT_OF_SCOPE issues');
+  const blockedPaths = pathIssues.map((i) => i.path);
+  // Each sensitive file must be blocked regardless of path separator
+  assert.ok(blockedPaths.some((p) => p.replace(/\\/g, '/').endsWith('src/.env')), '.env blocked');
+  assert.ok(blockedPaths.some((p) => p.replace(/\\/g, '/').endsWith('src/.env.local')), '.env.local blocked');
+  assert.ok(blockedPaths.some((p) => p.replace(/\\/g, '/').endsWith('credentials.yaml')), 'credentials.yaml blocked');
+  assert.ok(blockedPaths.some((p) => p.replace(/\\/g, '/').endsWith('secrets.json')), 'secrets.json blocked');
+  assert.ok(blockedPaths.some((p) => p.replace(/\\/g, '/').endsWith('sub/.env.local')), 'sub/.env.local blocked');
 });
