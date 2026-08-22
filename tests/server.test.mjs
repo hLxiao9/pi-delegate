@@ -8,7 +8,9 @@
 
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { resolveWorkerPaths } from '../lib/config.mjs';
@@ -408,8 +410,13 @@ test('GET /api/connections never throws when env has no PATH and adapters fail t
   // With PATH empty, adapters without a resolvable bin stay unavailable.
   // Adapters that declare candidateBins pointing at an existing file (e.g.
   // OpenCode at ~/.opencode/bin/opencode) become available via the fallback.
+  // The expectation must be derived from the actual filesystem: the developer's
+  // machine may have ~/.opencode/bin/opencode, but CI (ubuntu runner home)
+  // does not, so asserting a hard-coded `true` breaks CI.
+  const opencodeCandidate = path.join(os.homedir(), '.opencode', 'bin', 'opencode');
+  const expectOpenCodeAvailable = existsSync(opencodeCandidate);
   for (const a of json.adapters) {
-    if (a.name === 'opencode') assert.equal(a.available, true);
+    if (a.name === 'opencode') assert.equal(a.available, expectOpenCodeAvailable, `opencode availability should mirror ${opencodeCandidate} existence`);
     else assert.equal(a.available, false);
   }
   // no config.json when profiles is an empty array
