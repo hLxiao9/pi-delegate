@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet. Add upcoming changes here until the next tagged release._
+### Added
+- `pi-worker detect` command: probes every known worker CLI (`pi`/`kimi`/`trae`/`qoder`/`opencode`) for install status + model list, caches the result to `~/.cache/pi-worker/registry.json` (10-minute freshness) for cheap repeated dispatch and parent-agent introspection.
+- Interactive CLI+model chooser in `prepare`: when a human is at a TTY (no `PARENT_AGENT`/`PI_WORKER_CALLER`) and gives no `--profile`/`--model`, detection runs and the user confirms which CLI + model to dispatch with. Force it with `--select-worker true` / `--select-model true`.
+- OpenCode discovery via `~/.opencode/bin/opencode` candidate bin, so OpenCode is found even when it isn't on `PATH`. `doctor` and `detect` both use candidate-aware bin resolution.
+- `doctor` now appends a non-fatal `environment` block listing every installed CLI and its model count.
+
+### Changed
+- Removed the opencode-only TTY model picker from `git-worker.mjs`; unified by the new chooser in `lib/environment.mjs`.
+- `free` cost tier is now a valid config tier (profiles can be opted into via `--profile` or used as fallback targets).
 
 ## [0.1.0] - 2026-07-25
 

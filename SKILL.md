@@ -40,6 +40,35 @@ To override auto-selection, pass `--profile <name>` to `doctor`/`prepare`. To di
 
 Nine profiles ship in `fixtures/default-config.json` covering the Pi-backed providers — `volcengine` (standard), `deepseek` (cheap), `kimi` (standard), `minimax-m3` (premium), `gemini-vision` (premium, vision modality), `gpt-image` (premium, image-output modality) — plus three alternate-CLI profiles: `kimi-cli` (Kimi Code CLI adapter), `trae-cli` (Trae CLI adapter, OAuth login), and `qoder-cli` (Qoder CLI adapter). Add or edit profiles in `~/.config/pi-worker/config.json`; each profile may set `costTier: cheap | standard | premium`, `strengths: string[]`, and `modalities: string[]`. The `apiKeyEnv` field in `~/.config/pi-worker/config.json` and the `$VAR` reference in `~/.pi/agent/models.json` must point to the same environment variable name — `pi-worker doctor` detects mismatches and suggests the correct name.
 
+## Environment detection & interactive worker picker
+
+At startup (and whenever you need a fresh view), run `pi-worker detect`. It probes every known worker CLI on this machine — `pi`, `kimi`, `trae`, `qoder`, `opencode` — records whether each is installed and, for adapters that can enumerate models (`pi`, `opencode`), the full model list. Results are cached to `~/.cache/pi-worker/registry.json` for 10 minutes so dispatch stays cheap and a parent agent can read the cache to learn what's available here. OpenCode is also discovered via `~/.opencode/bin/opencode` even when it isn't on `PATH`.
+
+```
+pi-worker detect
+# → Detected environment (pi-worker worker CLIs):
+#     pi         v0.82.1  0 model(s)
+#     opencode   v1.18.21  7 model(s)
+#         - opencode/hy3-free
+#         - opencode/mimo-v2.5-free
+#         - opencode/nemotron-3.5-lightning-free
+#         ...
+```
+
+When a human dispatches a task interactively (a TTY, no `PARENT_AGENT`/`PI_WORKER_CALLER` driving pi-delegate headlessly) and gives **no** explicit `--profile`/`--model`, `prepare` runs `detect`, shows the merged CLI+model table, and asks which one to use:
+
+```
+pi-worker prepare --task TASK.json
+# → Available worker CLIs and models:
+#   * 1. opencode  opencode/hy3-free [free]
+#     2. opencode  opencode/nemotron-3.5-lightning-free [free]
+#     3. pi       MiniMax-M3 [premium]
+#     ...
+#   Select worker [1-15] (Enter = opencode opencode/hy3-free):
+```
+
+The table merges detected models (the full opencode list, etc.) with configured profiles, and drops any CLI that detection found not installed. Explicit flags or a parent agent skip the prompt and keep the existing auto-routing / `--profile` / `--model` behavior. Pass `--select-worker true` to force the prompt even under a parent agent, or `--select-model true` for the model-only variant. A parent agent that wants to drive dispatch should read `registry.json` (or `pi-worker detect`) and pass `--profile`/`--model` explicitly so the CLI+model choice is made once, not per task.
+
 ## Route first
 
 Delegate bounded features, bug fixes, tests, and mechanical refactors with deterministic checks and a narrow path allowlist.

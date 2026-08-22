@@ -17,6 +17,7 @@ import { reviseCommand, runCommand } from '../lib/pi-runner.mjs';
 import { reportCommand } from '../lib/report.mjs';
 import { selfReviewCommand } from '../lib/self-review.mjs';
 import { serveCommand } from '../lib/server.mjs';
+import { detectCommand } from '../lib/environment.mjs';
 import { approveCommand } from '../lib/review.mjs';
 import { recoverCommand } from '../lib/recovery.mjs';
 import { verifyCommand } from '../lib/verification.mjs';
@@ -36,6 +37,7 @@ if (signalSensitiveCommands.has(process.argv[2])) {
 process.exitCode = await main(process.argv.slice(2), process, {
   init: initCommand,
   doctor: doctorCommand,
+  detect: detectCommand,
   prepare: prepareCommand,
   run: runCommand,
   revise: reviseCommand,
