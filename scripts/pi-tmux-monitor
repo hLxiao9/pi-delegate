@@ -115,4 +115,14 @@ tmux set-option -t "$SESSION" mouse on >/dev/null 2>&1 || true
 echo "pi-tmux-monitor: monitoring ${#RUNS[@]} run(s) in tmux session '$SESSION'."
 echo "  attach:   tmux attach -t $SESSION"
 echo "  kill:     tmux kill-session -t $SESSION   (or: scripts/pi-tmux-monitor --kill)"
-exec tmux attach-session -t "$SESSION"
+
+# Auto-attach only when stdout is a real terminal (a human at a shell). When
+# invoked headless (CI, a parent agent, or any non-TTY caller) we must NOT
+# exec `tmux attach` — there is no terminal to draw into and it would fail
+# with "open terminal failed: not a terminal". In that case the session is
+# already built and the caller can attach later from their own terminal.
+if [[ -t 1 ]]; then
+  exec tmux attach-session -t "$SESSION"
+else
+  echo "pi-tmux-monitor: session '$SESSION' is ready (non-TTY caller; not auto-attaching)."
+fi
