@@ -58,7 +58,7 @@ collect_runs() {
     fi
     runs+=("$id")
   done
-  printf '%s\n' "${runs[@]}"
+  [[ ${#runs[@]} -gt 0 ]] && printf '%s\n' "${runs[@]}"
 }
 
 # --- commands ------------------------------------------------------------
