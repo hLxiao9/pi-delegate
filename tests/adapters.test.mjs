@@ -87,7 +87,7 @@ test('resolveBin uses adapter-specific env var', () => {
 test('listAdapters returns all known adapters', () => {
   const list = listAdapters();
   const names = list.map((a) => a.name).sort();
-  const expected = ['kimi', 'opencode', 'pi', 'qoder', 'trae'].sort();
+  const expected = ['codebuddy', 'kimi', 'opencode', 'pi', 'qoder', 'trae'].sort();
   assert.deepEqual(names, expected);
   assert.equal(list.length, expected.length);
 });
@@ -292,4 +292,51 @@ test('config rejects invalid adapter name', async () => {
   config.profiles['bad'].adapter = 'unknown-cli';
   await writeJsonAtomic(paths.configFile, config);
   await assert.rejects(() => loadConfig(paths), (e) => e.code === 'CONFIG_INVALID');
+});
+
+test('CodeBuddyAdapter parses a result object with usage', () => {
+  const adapter = getAdapter('codebuddy');
+  const stdout = JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: 'done', usage: { input_tokens: 10, output_tokens: 5 }, total_cost_usd: 0 });
+  const parsed = adapter.parseOutput(stdout, '', 0, false);
+  assert.equal(parsed.text, 'done');
+  assert.equal(parsed.lastAssistant.stopReason, 'stop');
+  assert.equal(parsed.lastAssistant.usage.input, 10);
+  assert.equal(parsed.lastAssistant.usage.output, 5);
+});
+
+test('CodeBuddyAdapter treats unauthenticated exit-0 output as an auth failure', () => {
+  const adapter = getAdapter('codebuddy');
+  const stderr = 'Authentication required. Please use /login command to sign in to your account';
+  const parsed = adapter.parseOutput('', stderr, 0, false);
+  assert.equal(parsed.lastAssistant.stopReason, 'error');
+  assert.equal(adapter.classifyFailure({ stderr, stdout: '', exitCode: 0, timedOut: false }), 'auth');
+});
+
+test('CodeBuddyAdapter.invokeCommand passes prompt via stdin and restricts tools', () => {
+  const adapter = getAdapter('codebuddy');
+  const spec = adapter.invokeCommand({ state: { runId: 'r1', worktreePath: '/wt' }, profile: { model: 'deepseek-v4.1-flash' }, prompt: 'SECRET_PROMPT', config: { limits: {} } });
+  assert.equal(spec.input, 'SECRET_PROMPT');
+  assert.ok(!spec.argv.includes('SECRET_PROMPT'));
+  assert.ok(!spec.argv.join(',').includes('Bash'));
+  assert.deepEqual(spec.argv.slice(spec.argv.indexOf('--model'), spec.argv.indexOf('--model') + 2), ['--model', 'deepseek-v4.1-flash']);
+  assert.equal(spec.cwd, '/wt');
+});
+
+test('CodeBuddyAdapter parses tail-truncated stream-json and takes the final result', () => {
+  const adapter = getAdapter('codebuddy');
+  const lines = [
+    'ed-fragment-of-a-cut-off-line"}',
+    JSON.stringify({ type: 'assistant', message: { role: 'assistant', content: [{ type: 'text', text: 'working' }] } }),
+    JSON.stringify({ type: 'result', subtype: 'success', is_error: false, result: 'all done', usage: { input_tokens: 6346, output_tokens: 3, cache_read_input_tokens: 6144 }, total_cost_usd: 0 }),
+  ];
+  const parsed = adapter.parseOutput(lines.join('\n') + '\n', '', 0, false);
+  assert.equal(parsed.text, 'all done');
+  assert.equal(parsed.lastAssistant.stopReason, 'stop');
+  assert.equal(parsed.lastAssistant.usage.cacheRead, 6144);
+});
+
+test('CodeBuddyAdapter flags an error result even with exit code 0', () => {
+  const adapter = getAdapter('codebuddy');
+  const stdout = JSON.stringify({ type: 'result', subtype: 'error_max_turns', is_error: true, result: '' });
+  assert.equal(adapter.parseOutput(stdout, '', 0, false).lastAssistant.stopReason, 'error');
 });

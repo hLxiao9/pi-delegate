@@ -1,6 +1,6 @@
 ---
 name: pi-delegate
-description: Use when a user explicitly invokes $pi-delegate, asks the parent agent to delegate a bounded code implementation to Pi CLI / Kimi Code CLI / Trae CLI / Qoder CLI or a cheaper coding model, or requests unattended coding completion across projects. Supports multiple CLI backends via the adapter system (pi/kimi/trae/qoder).
+description: Use when a user explicitly invokes $pi-delegate, asks the parent agent to delegate a bounded code implementation to Pi CLI / Kimi Code CLI / Trae CLI / Qoder CLI / CodeBuddy CLI (WorkBuddy) or a cheaper coding model, or requests unattended coding completion across projects. Supports multiple CLI backends via the adapter system (pi/kimi/trae/qoder/opencode/codebuddy).
 ---
 
 # Pi Delegate
@@ -41,7 +41,7 @@ Difficulty is inferred by `lib/difficulty.mjs` from task signals: goal length, a
 
 To override auto-selection, pass `--profile <name>` to `doctor`/`prepare`. To disable auto-selection entirely, leave `costTier` off your profiles; the skill then falls back to `defaultProfile`.
 
-Nine profiles ship in `fixtures/default-config.json` covering the Pi-backed providers — `volcengine` (standard), `deepseek` (cheap), `kimi` (standard), `minimax-m3` (premium), `gemini-vision` (premium, vision modality), `gpt-image` (premium, image-output modality) — plus three alternate-CLI profiles: `kimi-cli` (Kimi Code CLI adapter), `trae-cli` (Trae CLI adapter, OAuth login), and `qoder-cli` (Qoder CLI adapter). Add or edit profiles in `~/.config/pi-worker/config.json`; each profile may set `costTier: cheap | standard | premium`, `strengths: string[]`, and `modalities: string[]`. The `apiKeyEnv` field in `~/.config/pi-worker/config.json` and the `$VAR` reference in `~/.pi/agent/models.json` must point to the same environment variable name — `pi-worker doctor` detects mismatches and suggests the correct name.
+Ten profiles ship in `fixtures/default-config.json` covering the Pi-backed providers — `volcengine` (standard), `deepseek` (cheap), `kimi` (standard), `minimax-m3` (premium), `gemini-vision` (premium, vision modality), `gpt-image` (premium, image-output modality) — plus four alternate-CLI profiles: `kimi-cli` (Kimi Code CLI adapter), `trae-cli` (Trae CLI adapter, OAuth login), `qoder-cli` (Qoder CLI adapter), and `codebuddy-cli` (CodeBuddy Code CLI, `npm i -g @tencent-ai/codebuddy-code`, default model `deepseek-v4.1-flash`; OAuth login via `codebuddy` → `/login`; the headless copy bundled in WorkBuddy.app cannot log in and is not used; no `costTier`, so it is only used with `--profile codebuddy-cli`; an unauthenticated run exits 0, which the adapter classifies as `auth`). Add or edit profiles in `~/.config/pi-worker/config.json`; each profile may set `costTier: cheap | standard | premium`, `strengths: string[]`, and `modalities: string[]`. The `apiKeyEnv` field in `~/.config/pi-worker/config.json` and the `$VAR` reference in `~/.pi/agent/models.json` must point to the same environment variable name — `pi-worker doctor` detects mismatches and suggests the correct name.
 
 ## Environment detection & interactive worker picker
 

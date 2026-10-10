@@ -275,6 +275,28 @@
       "modalities": [
         "text"
       ]
+    },
+    "codebuddy-cli": {
+      "adapter": "codebuddy",
+      "provider": "codebuddy",
+      "model": "deepseek-v4.1-flash",
+      "capabilities": [
+        "text",
+        "code",
+        "tool-use"
+      ],
+      "fallbackProfiles": [],
+      "monthlyPlan": {
+        "currency": "CNY",
+        "amount": 0
+      },
+      "strengths": [
+        "frontend",
+        "backend"
+      ],
+      "modalities": [
+        "text"
+      ]
     }
   },
   "maxConcurrentRuns": 4

@@ -386,7 +386,7 @@ test('GET /api/connections returns ok:true with adapters[] and profiles[]', asyn
   // should at least contain known adapters (pi/kimi/trae/qoder/opencode)
   assert.ok(json.adapters.length >= 5, `expected >=5 adapters, got ${json.adapters.length}`);
   const adapterNames = json.adapters.map((a) => a.name).sort();
-  assert.deepEqual(adapterNames, ['kimi', 'opencode', 'pi', 'qoder', 'trae']);
+  assert.deepEqual(adapterNames, ['codebuddy', 'kimi', 'opencode', 'pi', 'qoder', 'trae']);
   // profile must contain seed the three written
   const profileNames = json.profiles.map((p) => p.name).sort();
   assert.deepEqual(profileNames, ['kimi', 'trae-cli', 'volcengine']);
