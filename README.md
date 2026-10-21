@@ -1,5 +1,10 @@
 # spotworkers
 
+[![npm version](https://img.shields.io/npm/v/spotworkers.svg)](https://www.npmjs.com/package/spotworkers)
+[![npm downloads](https://img.shields.io/npm/dm/spotworkers.svg)](https://www.npmjs.com/package/spotworkers)
+[![license](https://img.shields.io/npm/l/spotworkers.svg)](./LICENSE)
+[![CI](https://github.com/hLxiao9/spotworkers/actions/workflows/ci.yml/badge.svg)](https://github.com/hLxiao9/spotworkers/actions/workflows/ci.yml)
+
 > **Stop spending your Claude Code / Codex quota on work a cheap model can do.**
 >
 > `spot` hands a bounded implementation task to a cheap agent worker (Pi / Qwen / DeepSeek / Kimi / Qoder / CodeBuddy), then independently re-runs your tests, checks the diff hash, and merges only when every gate is green. Architecture, review and commit authority stay with your main agent.
@@ -105,7 +110,7 @@ pi --version
 
 ## Install
 
-### Option 1 — npm global (recommended once published)
+### Option 1 — npm global (recommended)
 
 ```bash
 npm install -g spotworkers

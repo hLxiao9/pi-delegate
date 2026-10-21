@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-22
+
+### Published
+- First release on the public npm registry: `spotworkers@0.2.0`. Install with `npm install -g spotworkers`, run without installing via `npx -p spotworkers spot serve`, or register the bundled skill with `pi install npm:spotworkers` (the `pi-package` keyword makes it eligible for the Pi package gallery).
+
 ### Renamed
 - **Project renamed `pi-delegate` → `spotworkers`, CLI `pi-worker` → `spot`.** The tool has driven Pi, Kimi, Trae, Qoder, OpenCode and CodeBuddy for a while, and the old name implied a single backend. `pi-worker` stays as a working alias.
 - **Compatibility is deliberate: state, config and cache directories keep the historical `pi-worker` name** (`~/.config/pi-worker`, `~/.cache/pi-worker`, `~/.local/state/pi-worker`), and `PI_WORKER_*` env vars are unchanged. Renaming them would have silently orphaned every existing install's profiles, credentials and run history.

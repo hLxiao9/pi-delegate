@@ -1,5 +1,10 @@
 # spotworkers
 
+[![npm version](https://img.shields.io/npm/v/spotworkers.svg)](https://www.npmjs.com/package/spotworkers)
+[![npm downloads](https://img.shields.io/npm/dm/spotworkers.svg)](https://www.npmjs.com/package/spotworkers)
+[![license](https://img.shields.io/npm/l/spotworkers.svg)](./LICENSE)
+[![CI](https://github.com/hLxiao9/spotworkers/actions/workflows/ci.yml/badge.svg)](https://github.com/hLxiao9/spotworkers/actions/workflows/ci.yml)
+
 > **不再把 Claude Code / Codex 的额度，消耗在便宜模型也能完成的工作上。**
 >
 > `spot` 把有边界的实现任务派给便宜的 Agent Worker（Pi / Qwen / DeepSeek / Kimi / Qoder / CodeBuddy），随后自行重跑你的测试、校验 diff 哈希，所有闸门通过才合并。架构、审查与提交权始终留在主控端 Agent 手里。
@@ -105,7 +110,7 @@ pi --version
 
 ## 安装
 
-### 方式 1 — npm 全局安装（发布后推荐）
+### 方式 1 — npm 全局安装（推荐）
 
 ```bash
 npm install -g spotworkers
