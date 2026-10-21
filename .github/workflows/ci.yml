@@ -13,6 +13,7 @@ jobs:
   test:
     name: Syntax + tests (Node ${{ matrix.node-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -32,7 +33,11 @@ jobs:
         run: npm run check:syntax
 
       - name: Test
-        run: npm test
+        shell: bash
+        # pipefail so a failing test fails this step even though output is teed.
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee test-output.txt
 
       - name: Test summary
         if: always()
@@ -41,6 +46,6 @@ jobs:
             echo "## Test results"
             echo ""
             echo '```'
-            npm test 2>&1 | tail -12 || true
+            tail -12 test-output.txt 2>/dev/null || echo "no test output captured"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

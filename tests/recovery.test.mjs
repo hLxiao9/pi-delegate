@@ -113,13 +113,15 @@ setInterval(() => {}, 1000);
   child.stdout.on('data', (chunk) => { stdout += chunk; });
   child.stderr.on('data', (chunk) => { stderr += chunk; });
   const stateFile = path.join(paths.stateRoot, 'runs', runId, 'state.json');
-  for (let i = 0; i < 100; i += 1) {
+  let sawRunning = false;
+  for (let i = 0; i < 250; i += 1) {
     try {
       const state = JSON.parse(await readFile(stateFile, 'utf8'));
-      if (state.status === 'running') break;
+      if (state.status === 'running') { sawRunning = true; break; }
     } catch {}
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    await new Promise((resolve) => setTimeout(resolve, 40));
   }
+  assert.equal(sawRunning, true, `run never reached 'running' before SIGTERM\n${stdout}\n${stderr}`);
   child.kill('SIGTERM');
   const exitCode = await new Promise((resolve) => child.once('close', (code) => resolve(code)));
   assert.notEqual(exitCode, 0, `${stdout}\n${stderr}`);

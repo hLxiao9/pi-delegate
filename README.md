@@ -115,10 +115,20 @@ spot --help
 ### Option 2 — npx (no install)
 
 ```bash
-npx spotworkers serve
+npx -p spotworkers spot serve
 ```
 
-### Option 3 — local link (for development / pre-publish verification)
+The package ships two binaries (`spot` and the `pi-worker` alias), so npx has to be told which one to run — a bare `npx spotworkers` cannot guess.
+
+### Option 3 — as a Pi package
+
+```bash
+pi install npm:spotworkers
+```
+
+This registers the bundled `SKILL.md` with Pi, so `/skill:spotworkers` becomes available inside a Pi session. It does not put `spot` on your `PATH` — use Option 1 if you want both.
+
+### Option 4 — local link (for development / pre-publish verification)
 
 ```bash
 git clone https://github.com/hLxiao9/spotworkers.git

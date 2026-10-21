@@ -51,6 +51,11 @@
     "cli"
   ],
   "license": "AGPL-3.0-or-later",
+  "pi": {
+    "skills": [
+      "./"
+    ]
+  },
   "homepage": "https://github.com/hLxiao9/spotworkers#readme",
   "repository": {
     "type": "git",

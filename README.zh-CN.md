@@ -115,10 +115,20 @@ spot --help
 ### 方式 2 — npx（免安装）
 
 ```bash
-npx spotworkers serve
+npx -p spotworkers spot serve
 ```
 
-### 方式 3 — 本地 link（开发 / 发布前验证用）
+包内提供两个可执行入口（`spot` 与 `pi-worker` 别名），npx 无法自行判断该执行哪一个，需显式指定。
+
+### 方式 3 — 作为 Pi package 安装
+
+```bash
+pi install npm:spotworkers
+```
+
+该方式会把包内的 `SKILL.md` 注册到 Pi，使 `/skill:spotworkers` 在 Pi 会话中可用。它**不会**把 `spot` 放进 `PATH`；若两者都要，请用方式 1。
+
+### 方式 4 — 本地 link（开发 / 发布前验证用）
 
 ```bash
 git clone https://github.com/hLxiao9/spotworkers.git

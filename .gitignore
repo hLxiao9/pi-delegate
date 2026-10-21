@@ -46,3 +46,6 @@ coverage/
 # Misc temp files created during runs
 lib/.write-test
 *.tmp
+
+# CI test log
+test-output.txt
