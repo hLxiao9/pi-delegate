@@ -116,12 +116,13 @@ test('findSimilarEnvVarNames matches shared provider prefix', async () => {
   assert.equal(result.VOLCENGINE_API_KEY, 'VOLCENGINE_SECRET_KEY');
 });
 
-test('buildCredentialHint suggests source ~/.zshrc when key is in profile but not env', async () => {
+test('buildCredentialHint points at credentials.env when the key is set but not inherited', async () => {
   const home = await makeTempDir('shell-profile-hint-inherit-');
   await writeProfile(home, '.zshrc', 'export VOLCENGINE_API_KEY=sk-real\n');
   const hint = await buildCredentialHint('VOLCENGINE_API_KEY', { home });
-  assert.match(hint, /found in shell profile but not inherited/);
-  assert.match(hint, /source ~\/\.zshrc/);
+  assert.match(hint, /but this process did not inherit it/);
+  assert.match(hint, /\.zshrc|credentials\.env/);
+  assert.match(hint, /new shell|\. ~\/\.config\/pi-worker\/credentials\.env/);
 });
 
 test('buildCredentialHint suggests rename when a similar name is exported', async () => {
@@ -136,6 +137,33 @@ test('buildCredentialHint suggests the export line when nothing is configured', 
   const home = await makeTempDir('shell-profile-hint-empty-');
   const hint = await buildCredentialHint('VOLCENGINE_API_KEY', { home });
   assert.match(hint, /Missing provider credential: VOLCENGINE_API_KEY/);
-  assert.match(hint, /export VOLCENGINE_API_KEY=YOUR_KEY_HERE/);
+  // points at the dedicated credentials file, not ~/.zshrc: a .zshrc-only
+  // export is invisible to GUI-launched and non-interactive processes
+  assert.match(hint, /export VOLCENGINE_API_KEY=YOUR_KEY/);
+  assert.match(hint, /\.config\/pi-worker\/credentials\.env/);
   assert.match(hint, /pi-worker doctor/);
+});
+
+test('loadShellProfileEnv reads ~/.config/pi-worker/credentials.env before shell profiles', async () => {
+  const home = await makeTempDir('shell-profile-credentials-file-');
+  await mkdir(path.join(home, '.config', 'pi-worker'), { recursive: true });
+  await writeFile(path.join(home, '.config', 'pi-worker', 'credentials.env'), 'export QODERCN_PERSONAL_ACCESS_TOKEN="pat-from-credentials-file"\n');
+  await writeFile(path.join(home, '.zshrc'), 'export QODERCN_PERSONAL_ACCESS_TOKEN="pat-from-zshrc"\n');
+  const env = await loadShellProfileEnv(['QODERCN_PERSONAL_ACCESS_TOKEN'], { home });
+  assert.equal(env.QODERCN_PERSONAL_ACCESS_TOKEN, 'pat-from-credentials-file');
+});
+
+test('loadShellProfileEnv reads ~/.zshenv (non-interactive shells)', async () => {
+  const home = await makeTempDir('shell-profile-zshenv-');
+  await writeFile(path.join(home, '.zshenv'), 'export DEEPSEEK_API_KEY="from-zshenv"\n');
+  const env = await loadShellProfileEnv(['DEEPSEEK_API_KEY'], { home });
+  assert.equal(env.DEEPSEEK_API_KEY, 'from-zshenv');
+});
+
+test('commented-out export lines in credentials.env are ignored', async () => {
+  const home = await makeTempDir('shell-profile-commented-');
+  await mkdir(path.join(home, '.config', 'pi-worker'), { recursive: true });
+  await writeFile(path.join(home, '.config', 'pi-worker', 'credentials.env'), '# export QODERCN_PERSONAL_ACCESS_TOKEN="pat-should-not-load"\n');
+  const env = await loadShellProfileEnv(['QODERCN_PERSONAL_ACCESS_TOKEN'], { home });
+  assert.deepEqual(env, {});
 });

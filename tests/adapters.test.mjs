@@ -43,8 +43,10 @@ test('getAdapter returns QoderAdapter for qoder', () => {
   assert.equal(adapter.name, 'qoder');
   assert.equal(adapter.defaultBin, 'qoderclicn');
   assert.equal(adapter.supportsStreaming, false);
-  assert.equal(adapter.supportsTokenUsage, false);
-  assert.equal(adapter.supportsModelList, false);
+  // verified on qoderclicn 1.1.73: the json result object carries usage + total_cost_usd
+  assert.equal(adapter.supportsTokenUsage, true);
+  // --list-models works once authenticated (verified against 1.1.73)
+  assert.equal(adapter.supportsModelList, true);
 });
 
 test('getAdapter throws on unknown adapter', () => {
@@ -139,7 +141,7 @@ test('TraeAdapter.invokeCommand passes prompt via stdin (no argv leak)', () => {
   assert.equal(cmd.input, 'hello');
 });
 
-test('QoderAdapter.invokeCommand passes prompt via stdin (no argv leak)', () => {
+test('QoderAdapter.invokeCommand forces -p and passes prompt via stdin (no argv leak)', () => {
   const adapter = getAdapter('qoder');
   const cmd = adapter.invokeCommand({
   state: { runId: 'test-run', worktreePath: '/tmp/wt' },
@@ -149,18 +151,19 @@ test('QoderAdapter.invokeCommand passes prompt via stdin (no argv leak)', () => 
   sessionDir: '/tmp/session',
   mode: 'run',
   });
+  // -p/--print is mandatory: qoderclicn defaults to the interactive TUI without it.
+  assert.ok(cmd.argv.includes('-p'), 'qoder must run in headless mode');
   // Prompt must NOT appear in argv (prevents ps/proc leakage)
-  assert.ok(!cmd.argv.includes('-p'));
   assert.ok(!cmd.argv.includes('hello'));
   assert.ok(cmd.argv.includes('--output-format=json'));
   assert.ok(cmd.argv.includes('--yolo'));
   assert.ok(cmd.argv.some((a) => a.startsWith('--allowed-tool')));
-  // stdin marker must be the last argv element (after all flags)
-  assert.equal(cmd.argv[cmd.argv.length - 1], '-');
+  // No positional '-' marker: with -p the CLI reads the prompt from stdin on its own.
+  assert.ok(!cmd.argv.includes('-'), 'no stdin marker; -p already enables stdin prompt');
   assert.equal(cmd.input, 'hello');
 });
 
-test('QoderAdapter.invokeCommand places --max-turns before stdin marker', () => {
+test('QoderAdapter.invokeCommand keeps --max-turns as a flag without a stdin marker', () => {
   const adapter = getAdapter('qoder');
   const cmd = adapter.invokeCommand({
   state: { runId: 'test-run', worktreePath: '/tmp/wt' },
@@ -171,13 +174,146 @@ test('QoderAdapter.invokeCommand places --max-turns before stdin marker', () => 
   mode: 'run',
   });
   const maxTurnsIdx = cmd.argv.indexOf('--max-turns');
-  const stdinIdx = cmd.argv.indexOf('-');
   assert.ok(maxTurnsIdx !== -1, '--max-turns must be present');
   assert.equal(cmd.argv[maxTurnsIdx + 1], '25');
-  // --max-turns must come before the stdin marker so CLI parsers see it as a flag
-  assert.ok(maxTurnsIdx < stdinIdx, '--max-turns must precede the stdin marker');
-  assert.equal(cmd.argv[cmd.argv.length - 1], '-');
+  assert.ok(!cmd.argv.includes('-'), 'no stdin marker should be appended');
   assert.equal(cmd.input, 'hello');
+});
+
+test('QoderAdapter.parseOutput extracts text and usage from the json result object', () => {
+  const adapter = getAdapter('qoder');
+  const stdout = JSON.stringify({
+  type: 'result',
+  subtype: 'success',
+  is_error: false,
+  duration_ms: 1234,
+  num_turns: 3,
+  result: 'done',
+  total_cost_usd: 0.0123,
+  usage: {
+  input_tokens: 100,
+  output_tokens: 40,
+  cache_read_input_tokens: 20,
+  cache_creation_input_tokens: 5,
+  },
+  });
+  const out = adapter.parseOutput(stdout, '', 0, false);
+  assert.equal(out.text, 'done');
+  assert.equal(out.stopReason, 'stop');
+  assert.equal(out.usage.inputTokens, 100);
+  assert.equal(out.usage.outputTokens, 40);
+  assert.equal(out.usage.cachedInputTokens, 20);
+  assert.equal(out.usage.cacheWriteInputTokens, 5);
+  assert.equal(out.usage.totalTokens, 165);
+  assert.equal(out.usage.providerReportedCostUsd, 0.0123);
+  assert.equal(out.usage.requests, 3);
+});
+
+test('QoderAdapter keeps provider credits when every token counter is zero', () => {
+  // Real qoderclicn 1.1.73 payload: token counters are all 0, billing is in
+  // credits. Returning null here would hide the only number the provider reports.
+  const adapter = getAdapter('qoder');
+  const stdout = JSON.stringify({
+    type: 'result', subtype: 'success', is_error: false, num_turns: 1,
+    duration_ms: 3004, result: 'PONG', total_cost_usd: 0, total_credits: 0.107335932,
+    usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 },
+  });
+  const out = adapter.parseOutput(stdout, '', 0, false);
+  assert.ok(out.usage, 'usage must survive credits-only payloads');
+  assert.equal(out.usage.totalCredits, 0.107335932);
+  assert.equal(out.usage.inputTokens, 0);
+  assert.equal(out.usage.totalTokens, 0);
+  // the raw shape handed to normalizeUsage must carry credits too
+  assert.equal(out.lastAssistant.usage.credits, 0.107335932);
+});
+
+test('QoderAdapter.invokeCommand pins the model with -m when one is selected', () => {
+  const adapter = getAdapter('qoder');
+  const cmd = adapter.invokeCommand({
+    state: { runId: 'r', worktreePath: '/tmp/wt' },
+    profile: { provider: 'qoder', model: 'Qwen3.8-Flash' },
+    prompt: 'hi', config: {},
+  });
+  const idx = cmd.argv.indexOf('-m');
+  assert.ok(idx !== -1, 'selected model must reach the CLI');
+  assert.equal(cmd.argv[idx + 1], 'Qwen3.8-Flash');
+});
+
+test('QoderAdapter.invokeCommand omits -m for the placeholder model', () => {
+  const adapter = getAdapter('qoder');
+  for (const model of ['qoder-default', 'default', '']) {
+    const cmd = adapter.invokeCommand({
+      state: { runId: 'r', worktreePath: '/tmp/wt' },
+      profile: { provider: 'qoder', model }, prompt: 'hi', config: {},
+    });
+    assert.ok(!cmd.argv.includes('-m'), `placeholder '${model}' must not be pinned`);
+  }
+});
+
+test('QoderAdapter.listModels returns a priced catalog when a token is available', async () => {
+  const adapter = getAdapter('qoder');
+  // No cacheRoot => the adapter must decline rather than invent a roster.
+  assert.equal(await adapter.listModels({ profile: { provider: 'qoder' }, env: {}, bin: 'qoderclicn' }), null);
+});
+
+test('QoderAdapter.invokeCommand forwards reasoning effort and context window', () => {
+  const adapter = getAdapter('qoder');
+  const cmd = adapter.invokeCommand({
+    state: { runId: 'r', worktreePath: '/tmp/wt' },
+    profile: { provider: 'qoder', model: 'Qwen3.8-Flash', reasoningEffort: 'xhigh', maxContextSize: 1000000 },
+    prompt: 'hi', config: {},
+  });
+  const effortIdx = cmd.argv.indexOf('--reasoning-effort');
+  assert.ok(effortIdx !== -1, 'reasoning effort must reach the CLI');
+  assert.equal(cmd.argv[effortIdx + 1], 'xhigh');
+  const ctxIdx = cmd.argv.indexOf('--context-window');
+  assert.ok(ctxIdx !== -1, 'context window must reach the CLI');
+  assert.equal(cmd.argv[ctxIdx + 1], '1000000');
+});
+
+test('QoderAdapter.invokeCommand lets env override thinking depth for one run', () => {
+  const adapter = getAdapter('qoder');
+  const prev = process.env.PI_WORKER_QODER_REASONING_EFFORT;
+  process.env.PI_WORKER_QODER_REASONING_EFFORT = 'max';
+  try {
+    const cmd = adapter.invokeCommand({
+      state: { runId: 'r', worktreePath: '/tmp/wt' },
+      profile: { provider: 'qoder', model: 'Qwen3.8-Flash', reasoningEffort: 'high' },
+      prompt: 'hi', config: {},
+    });
+    assert.equal(cmd.argv[cmd.argv.indexOf('--reasoning-effort') + 1], 'max');
+  } finally {
+    if (prev === undefined) delete process.env.PI_WORKER_QODER_REASONING_EFFORT;
+    else process.env.PI_WORKER_QODER_REASONING_EFFORT = prev;
+  }
+});
+
+test('QoderAdapter.invokeCommand omits thinking flags when unset', () => {
+  const adapter = getAdapter('qoder');
+  const cmd = adapter.invokeCommand({
+    state: { runId: 'r', worktreePath: '/tmp/wt' },
+    profile: { provider: 'qoder', model: 'qoder-default' },
+    prompt: 'hi', config: {},
+  });
+  assert.ok(!cmd.argv.includes('--reasoning-effort'));
+  assert.ok(!cmd.argv.includes('--context-window'));
+});
+
+test('QoderAdapter.parseOutput flags is_error results with exit code 0', () => {
+  const adapter = getAdapter('qoder');
+  const stdout = JSON.stringify({ type: 'result', subtype: 'success', is_error: true, result: 'Not logged in · Please run /login' });
+  const out = adapter.parseOutput(stdout, '', 0, false);
+  assert.equal(out.stopReason, 'error');
+  assert.equal(out.usage, null);
+});
+
+test('QoderAdapter.classifyFailure maps a rejected PAT to auth', () => {
+  const adapter = getAdapter('qoder');
+  const stderr = 'An unexpected critical error occurred:QoderAuthError: The QODERCN_PERSONAL_ACCESS_TOKEN environment variable contains a token that was rejected.';
+  assert.equal(adapter.classifyFailure({ stderr, stdout: '', exitCode: 1, timedOut: false }), 'auth');
+  // unauthenticated json result (empty stderr) is also an auth problem
+  const stdout = JSON.stringify({ type: 'result', is_error: true, result: 'Not logged in · Please run /login' });
+  assert.equal(adapter.classifyFailure({ stderr: '', stdout, exitCode: 1, timedOut: false }), 'auth');
 });
 
 test('PiAdapter.parseOutput extracts text from NDJSON', () => {

@@ -41,22 +41,29 @@ Difficulty is inferred by `lib/difficulty.mjs` from task signals: goal length, a
 
 To override auto-selection, pass `--profile <name>` to `doctor`/`prepare`. To disable auto-selection entirely, leave `costTier` off your profiles; the skill then falls back to `defaultProfile`.
 
-Ten profiles ship in `fixtures/default-config.json` covering the Pi-backed providers — `volcengine` (standard), `deepseek` (cheap), `kimi` (standard), `minimax-m3` (premium), `gemini-vision` (premium, vision modality), `gpt-image` (premium, image-output modality) — plus four alternate-CLI profiles: `kimi-cli` (Kimi Code CLI adapter), `trae-cli` (Trae CLI adapter, OAuth login), `qoder-cli` (Qoder CLI adapter), and `codebuddy-cli` (CodeBuddy Code CLI, `npm i -g @tencent-ai/codebuddy-code`, default model `deepseek-v4.1-flash`; OAuth login via `codebuddy` → `/login`; the headless copy bundled in WorkBuddy.app cannot log in and is not used; no `costTier`, so it is only used with `--profile codebuddy-cli`; an unauthenticated run exits 0, which the adapter classifies as `auth`). Add or edit profiles in `~/.config/pi-worker/config.json`; each profile may set `costTier: cheap | standard | premium`, `strengths: string[]`, and `modalities: string[]`. The `apiKeyEnv` field in `~/.config/pi-worker/config.json` and the `$VAR` reference in `~/.pi/agent/models.json` must point to the same environment variable name — `pi-worker doctor` detects mismatches and suggests the correct name.
+Ten profiles ship in `fixtures/default-config.json` covering the Pi-backed providers — `volcengine` (standard), `deepseek` (cheap), `kimi` (standard), `minimax-m3` (premium), `gemini-vision` (premium, vision modality), `gpt-image` (premium, image-output modality) — plus four alternate-CLI profiles: `kimi-cli` (Kimi Code CLI adapter), `trae-cli` (Trae CLI adapter, OAuth login), `qoder-cli` (Qoder **CN** CLI adapter — binary `qoderclicn`, installed via `curl -fsSL https://qoder.com.cn/install | bash`; authenticate with a Personal Access Token from the qoder.cn account integrations page exported as `QODERCN_PERSONAL_ACCESS_TOKEN`. Ships with `model: free`, which resolves at dispatch time to the cheapest model the account can currently reach. Pricing comes from `GET https://api.qoder.com.cn/api/v1/cloud/models` (cached 30 min in `~/.cache/pi-worker/qoder-models.json`), not from `--list-models`, which prints a bare name column. Observed roster and multipliers: `DeepSeek-Flash` 0x, `Qwen3.8-Flash` 0x, `GLM-5.3-Flash` / `MiniMax-M3.1-Flash` / `Qwen3.7-Plus` 0.1x, `Auto` / `Qwen3.8-Max` / `DeepSeek-V4-Pro` 0.5x, `Fast` / `GLM-5.3` / `Kimi-K2.8-Preview` 0.8x, `Kimi-K3` 1.4x — but never hardcode this; the roster changes weekly (`pi-worker detect` prints the live table). The catalog also carries per-model `efforts` and `available_context_windows`, so `reasoningEffort` / `maxContextSize` are validated against the pinned model and snapped to a legal neighbour instead of failing the run (the adjustment is recorded as a `worker_warning` event). PITFALL: the CN build silently ignores the international `QODER_PERSONAL_ACCESS_TOKEN` and stays at "Not logged in"; without `-p/--print` it opens an interactive TUI that hangs the worker; and it reports all `usage.*_tokens` as 0, billing in `total_credits` instead), and `codebuddy-cli` (CodeBuddy Code CLI, `npm i -g @tencent-ai/codebuddy-code`, default model `deepseek-v4.1-flash`; OAuth login via `codebuddy` → `/login`; the headless copy bundled in WorkBuddy.app cannot log in and is not used; no `costTier`, so it is only used with `--profile codebuddy-cli`; an unauthenticated run exits 0, which the adapter classifies as `auth`). Add or edit profiles in `~/.config/pi-worker/config.json`; each profile may set `costTier: cheap | standard | premium`, `strengths: string[]`, and `modalities: string[]`. The `apiKeyEnv` field in `~/.config/pi-worker/config.json` and the `$VAR` reference in `~/.pi/agent/models.json` must point to the same environment variable name — `pi-worker doctor` detects mismatches and suggests the correct name.
 
 ## Environment detection & interactive worker picker
 
-At startup (and whenever you need a fresh view), run `pi-worker detect`. It probes every known worker CLI on this machine — `pi`, `kimi`, `trae`, `qoder`, `opencode` — records whether each is installed and, for adapters that can enumerate models (`pi`, `opencode`), the full model list. Results are cached to `~/.cache/pi-worker/registry.json` for 10 minutes so dispatch stays cheap and a parent agent can read the cache to learn what's available here. OpenCode is also discovered via `~/.opencode/bin/opencode` even when it isn't on `PATH`.
+At startup (and whenever you need a fresh view), run `pi-worker detect`. It probes every known worker CLI on this machine — `pi`, `kimi`, `trae`, `qoder`, `opencode` — records whether each is installed and, for adapters that can enumerate models, the full model list. Qoder's rows carry the live price multiplier and the per-model context/effort tiers, so "which of these is free?" is answerable from this table alone. Results are cached to `~/.cache/pi-worker/registry.json` for 10 minutes so dispatch stays cheap and a parent agent can read the cache to learn what's available here. OpenCode is also discovered via `~/.opencode/bin/opencode` even when it isn't on `PATH`.
 
 ```
 pi-worker detect
 # → Detected environment (pi-worker worker CLIs):
 #     pi         v0.82.1  0 model(s)
+#     qoder      v1.1.73  12 model(s)  (2 free)
+#         - DeepSeek-Flash  [free] ctx 200K/400K/1M effort low|high|max
+#         - Qwen3.8-Flash  [free] ctx 200K/400K/1M effort low|medium|xhigh
+#         - GLM-5.3-Flash  [0.1x] ctx 200K/400K/1M effort high|max
+#         ...
+#         - Kimi-K3  [1.4x] ctx 200K/400K/1M effort low|high|max
 #     opencode   v1.18.21  7 model(s)
 #         - opencode/hy3-free
 #         - opencode/mimo-v2.5-free
-#         - opencode/nemotron-3.5-lightning-free
 #         ...
 ```
+
+Qoder accepts a price alias as a model name: `--model free` (also `qoder-free`, `cheapest`) pins whichever model currently has `price_factor: 0`, so a profile never has to name a model that may be delisted next week.
 
 When a human dispatches a task interactively (a TTY, no `PARENT_AGENT`/`PI_WORKER_CALLER` driving pi-delegate headlessly) and gives **no** explicit `--profile`/`--model`, `prepare` runs `detect`, shows the merged CLI+model table, and asks which one to use:
 
@@ -149,4 +156,4 @@ The `maxConcurrentRuns` config (default 4, range 1-16) caps how many runs may be
 
 Report implementation, exact verification, parent verdict, revision count, commit/branch, integration status, actual parent-agent credits when available, Pi usage, estimated savings, cash impact, and "not pushed." The user needs no code-review action. Mention only blockers that require credentials, authority, or safe integration.
 
-Read `references/provider-configuration.md` only for setup/provider changes. Read `references/review-policy.md` for every delegated review.
+Read `references/provider-configuration.md` only for setup/provider changes. Read `references/credentials.md` when a credential is missing, when adding a provider, or when the user asks where a token goes (one env var per profile; `~/.config/pi-worker/credentials.env` sourced from `~/.zshenv`, never `config.json`). Read `references/review-policy.md` for every delegated review.

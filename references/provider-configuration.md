@@ -1,6 +1,6 @@
 # Provider Configuration
 
-Read this file only for setup, `doctor` failures, or a requested provider change. The active source of truth is `/Users/xiao9/.config/pi-worker/config.json`; credentials remain environment variables.
+Read this file only for setup, `doctor` failures, or a requested provider change. The active source of truth is `/Users/xiao9/.config/pi-worker/config.json`; credentials remain environment variables — where to put them, and the per-profile variable map, live in [`credentials.md`](./credentials.md).
 
 > **`apiKeyEnv` contract (read this first)**: the `apiKeyEnv` field in `~/.config/pi-worker/config.json` and the `$VAR` reference in `~/.pi/agent/models.json` must point to the **same** environment variable name. A mismatch (e.g., `apiKeyEnv: VOLCENGINE_API_KEY` in config but `$API_KEY` in models.json) causes silent 401s at run time. `pi-worker doctor` detects this and suggests the correct name. The nine built-in profiles each pin a specific `apiKeyEnv`; if you rename one, update both files.
 
@@ -217,15 +217,23 @@ export PI_WORKER_QODER_BIN=/usr/local/bin/qoderclicn
 - No token usage
 
 #### Qoder
-- Non-interactive `-p --output-format=json --yolo` mode, JSON output
-- **Environment variable auth**: `QODERCN_PERSONAL_ACCESS_TOKEN`
-- Supports `--allowed-tools` and `--max-turns`
-- Config dir: `~/.qoder-cn/` (created per run, no config file needed — token via env var)
-- No token usage (may be available via `stream-json` format in future)
+- Non-interactive `-p --output-format=json --yolo` mode, single JSON object output
+- **Environment variable auth**: `QODERCN_PERSONAL_ACCESS_TOKEN` — the CN build silently ignores the international `QODER_PERSONAL_ACCESS_TOKEN`
+- **Pricing comes from the cloud catalog, not the CLI**: `GET https://api.qoder.com.cn/api/v1/cloud/models` (Bearer PAT) returns `price_factor`, `efforts`, `available_context_windows` and `max_input_tokens` per model. Cached to `~/.cache/pi-worker/qoder-models.json` for 30 minutes with a schema version; `invokeCommand` reads that cache synchronously, `sanitizeHome` refreshes it, and every failure mode degrades to "no catalog" rather than a failed run.
+- **`--list-models` is not used for enumeration**: it prints a bare name column (no price, no tiers) and requires an interactive login. The API path also makes `pi-worker detect` work for Qoder, which used to report `0 model(s)`.
+- **Free-model alias**: `model: "free"` (also `qoder-free`, `cheapest`) resolves at dispatch time to the lowest `price_factor` model the account can reach, currently `DeepSeek-Flash` (ties on price and window with `Qwen3.8-Flash`; the name breaks the tie so the pick is stable). `qoder-cli` ships with this alias, so a delisted model never breaks the profile.
+- **Per-model capability validation**: `efforts` and `available_context_windows` differ per model — `DeepSeek-Flash` accepts `low|high|max` while `Qwen3.8-Flash` accepts `low|medium|xhigh`. A requested effort outside that set is snapped to its nearest legal neighbour, and a context window outside the published tiers (200K / 400K / 1M) is rounded **down** to the largest tier that still satisfies it. Both adjustments are recorded as `worker_warning` events and echoed into `worker.log`, never applied silently.
+- **Observed roster and multipliers** (2026-10; do not hardcode — the catalog changes weekly, `pi-worker detect` prints the live table): `DeepSeek-Flash` 0x, `Qwen3.8-Flash` 0x, `GLM-5.3-Flash` / `MiniMax-M3.1-Flash` / `Qwen3.7-Plus` 0.1x, `Auto` / `Qwen3.8-Max` / `DeepSeek-V4-Pro` 0.5x, `Fast` / `GLM-5.3` / `Kimi-K2.8-Preview` 0.8x, `Kimi-K3` 1.4x.
+- **Model pinning**: `prepare --model <display name>` forwards `-m`. The catalog `id` (`qfmodel`, `dfmodel`) is accepted too and translated, but `-m` itself wants the display name.
+- **Thinking depth**: `--reasoning-effort` takes `auto | none | low | medium | high | xhigh | max | ultracode` ("extra high" is `xhigh`; `max` and `ultracode` go further). Set `reasoningEffort` on the profile, or override a single run with `PI_WORKER_QODER_REASONING_EFFORT=xhigh`.
+- **Context window**: `--context-window <tokens>`, a positive integer (`1000000` = 1M). Set `maxContextSize` on the profile, or `PI_WORKER_QODER_CONTEXT_WINDOW=1000000`. Verified: for the same prompt, the reported `context_usage_ratio` drops from `0.117` (default window) to `0.024` (1M), i.e. the window really widened.
+- **No token usage — credits instead**: every `usage.*_tokens` counter returns `0` and billing lands in `total_credits`, surfaced as `totalCredits` in metrics and `report.md`. A `price_factor: 0` model still reports credits consumed (the counter exists even when the rate is zero) — read the multiplier, not the credit count, to know whether a run was free.
+- `--thinking enabled` requires `--thinking-budget <tokens>`. The adapter never passes `--thinking`; use `--reasoning-effort` for depth control instead.
+- Config dir: `~/.qoder-cn/`, isolated per run via `HOME`; the PAT crosses the sandbox boundary, interactive `/login` credentials do not (see `credentials.md`).
 
 ### Metrics Degradation
 
-When adapter `supportsTokenUsage = false` (Kimi/Trae/Qoder):
+When adapter `supportsTokenUsage = false` (Kimi/Trae):
 - `metrics.pi.usage` = `null`
 - `metrics.pi.usageAvailable` = `false`
 - `metrics.counterfactual.estimatedCreditSavingRate` = `null`
