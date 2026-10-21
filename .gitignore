@@ -26,6 +26,8 @@ desktop.ini
 # Secrets — never commit credentials
 .env
 .env.*
+*.env
+credentials.env
 !.env.example
 *.pem
 *.key
