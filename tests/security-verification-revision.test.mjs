@@ -18,12 +18,18 @@ import { makeTempDir, initGitRepo, runNode, runProcess, writeExecutable } from '
 const skillRoot = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 const cli = path.join(skillRoot, 'scripts', 'pi-worker.mjs');
 
-async function fixture({ piMode = 'always-correct' } = {}) {
+async function fixture({ piMode = 'always-correct', seed = {} } = {}) {
   const home = await makeTempDir('pi-verify-home-');
   const repositoryRoot = await initGitRepo(path.join(home, 'source'));
   await mkdir(path.join(repositoryRoot, 'src'), { recursive: true });
   await writeFile(path.join(repositoryRoot, 'src', 'old.js'), 'export const old = true;\n');
-  await runProcess('git', ['add', 'src/old.js'], { cwd: repositoryRoot });
+  // Extra base-revision files, so a test can exercise ratio guardrails against a
+  // realistically sized file instead of a one-liner.
+  for (const [relative, content] of Object.entries(seed)) {
+    await mkdir(path.dirname(path.join(repositoryRoot, relative)), { recursive: true });
+    await writeFile(path.join(repositoryRoot, relative), content);
+  }
+  await runProcess('git', ['add', '-A'], { cwd: repositoryRoot });
   await runProcess('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgSign=false', 'commit', '-m', 'test: add allowed source'], { cwd: repositoryRoot });
   const paths = resolveWorkerPaths({}, home);
   await installDefaultConfiguration({ paths });
@@ -152,6 +158,35 @@ test('a failed first verification can be revised once and then pass', async () =
   assert.equal(passed.code, 0, passed.stderr);
   assert.equal(JSON.parse(passed.stdout).passed, true);
   assert.equal(await readFile(path.join(item.paths.stateRoot, 'runs', item.runId, 'pi-home', 'revision-counter'), 'utf8'), '2');
+});
+
+// The old formula was `deleted / (added + deleted)`, which scores every pure
+// edit at 0.5 — above the 0.35 default — so fixing one line in a 30-line file
+// was blocked as "excessive deletion" even though 29 lines were untouched.
+// The ratio is now measured against the base file size.
+test('a single-line edit in a larger file is not flagged as excessive deletion', async () => {
+  const body = Array.from({ length: 30 }, (_, index) => `export const v${index} = ${index};`).join('\n') + '\n';
+  const item = await fixture({ seed: { 'src/lib.js': body } });
+  await forceVerifying(item);
+  await writeFile(path.join(item.worktree, 'src', 'result.js'), 'export const value = 42;\n');
+  await writeFile(path.join(item.worktree, 'src', 'lib.js'), body.replace('export const v7 = 7;', 'export const v7 = 70;'));
+  const result = await runNode(cli, ['verify', '--id', item.runId], { env: item.env });
+  assert.equal(result.code, 0, result.stderr);
+  const payload = JSON.parse(result.stdout);
+  assert.equal(payload.passed, true);
+  const evidence = JSON.parse(await readFile(path.join(item.paths.stateRoot, 'runs', item.runId, 'verification.json'), 'utf8'));
+  assert.equal(evidence.security.issues.some((issue) => issue.code === 'EXCESSIVE_DELETION'), false);
+});
+
+test('deleting a whole file is still blocked after the ratio change', async () => {
+  const item = await fixture();
+  await forceVerifying(item);
+  await writeFile(path.join(item.worktree, 'src', 'result.js'), 'export const value = 42;\n');
+  await rm(path.join(item.worktree, 'src', 'old.js'));
+  const result = await runNode(cli, ['verify', '--id', item.runId], { env: item.env });
+  assert.equal(result.code, 1);
+  const error = JSON.parse(result.stderr);
+  assert.ok(error.error.details.issues.some((issue) => issue.code === 'EXCESSIVE_DELETION'));
 });
 
 for (const [name, mutate, expectedCode] of [
