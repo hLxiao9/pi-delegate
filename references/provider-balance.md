@@ -1,13 +1,13 @@
 # Provider Balance Adapters
 
 Pi CLI does not expose a subscription balance/quota query command. To show
-"Pi-side balance" (Pi-side remaining balance) in the monitoring dashboard, pi-delegate
+"Pi-side balance" (Pi-side remaining balance) in the monitoring dashboard, spotworkers
 uses a pluggable adapter pattern: each provider has an optional adapter that
 calls the provider's own balance API.
 
 ## How it works
 
-1. `pi-worker report` reads the run's profile from config.
+1. `spot report` reads the run's profile from config.
 2. If the profile has `balanceAdapter` set, `fetchProviderBalance` is called.
 3. The result is stored in `metrics.json` under `pi.balance`.
 4. The dashboard shows the balance in the "Pi-side balance" column.

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# pi-delegate - multi-run worker log monitor (tmux)
+# spotworkers - multi-run worker log monitor (tmux)
 #
-# Opens a tmux session named "pi-delegate" with one pane per active pi-worker
+# Opens a tmux session named "spotworkers" with one pane per active spot
 # run, each pane tailing that run's human-readable worker.log in real time.
 # This lets you watch many CLI workers (e.g. several OpenCode dispatches)
 # concurrently without disturbing the headless parent-agent loop.
@@ -14,13 +14,13 @@
 #
 # Env:
 #   PI_WORKER_STATE_DIR   override the state root (default ~/.local/state/pi-worker)
-#   PI_MONITOR_SESSION    tmux session name (default pi-delegate)
+#   PI_MONITOR_SESSION    tmux session name (default spotworkers)
 #   PI_MONITOR_MAX        max panes (default 9; tmux gets unwieldy beyond that)
 #
 set -euo pipefail
 
 STATE_DIR="${PI_WORKER_STATE_DIR:-$HOME/.local/state/pi-worker}"
-SESSION="${PI_MONITOR_SESSION:-pi-delegate}"
+SESSION="${PI_MONITOR_SESSION:-spotworkers}"
 MAX_PANES="${PI_MONITOR_MAX:-9}"
 
 ACTIVE_STATES="prepared running verifying selfReviewing reviewing revising recovering"

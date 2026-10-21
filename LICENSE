@@ -1,4 +1,4 @@
-pi-delegate - Parent-agent-owned Pi implementation worker:
+spotworkers - Parent-agent-owned Pi implementation worker:
              delegate bounded code tasks to Pi CLI with isolation,
              verification, review, and a live monitoring dashboard.
 

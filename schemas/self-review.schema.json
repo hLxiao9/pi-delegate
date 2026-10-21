@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://local.pi-worker.invalid/self-review.schema.json",
+  "$id": "https://local.spot.invalid/self-review.schema.json",
   "title": "Pi Worker Self-Review Report",
   "description": "Worker-generated self-review consumed by the parent agent to reduce token spend on full-diff review. The parent agent still owns the final verdict; this is a hint, not evidence.",
   "type": "object",

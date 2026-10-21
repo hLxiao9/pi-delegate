@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://local.pi-worker.invalid/task-contract.schema.json",
+  "$id": "https://local.spot.invalid/task-contract.schema.json",
   "title": "Pi Worker Task Contract",
   "type": "object",
   "additionalProperties": false,

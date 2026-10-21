@@ -28,7 +28,7 @@ body:
     id: gates
     attributes:
       label: Does this weaken any hard gate?
-      description: pi-delegate's security model depends on independent verification, diff-hash integrity, and the hard gates in SKILL.md.
+      description: spotworkers's security model depends on independent verification, diff-hash integrity, and the hard gates in SKILL.md.
       options:
         - label: "No, this does not weaken independent verification, diff-hash integrity, or any hard gate"
           required: true

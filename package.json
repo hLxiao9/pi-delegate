@@ -1,13 +1,14 @@
 {
-  "name": "pi-delegate",
-  "version": "0.1.0",
-  "description": "Parent-agent-owned Pi implementation worker: delegate bounded code tasks to Pi CLI with isolation, verification, review, and a live monitoring dashboard.",
+  "name": "spotworkers",
+  "version": "0.2.0",
+  "description": "Outsource bounded coding tasks to cheap agent workers. Your main agent keeps architecture, verification and commit rights — and you stop burning your quota.",
   "type": "module",
   "engines": {
     "node": ">=22.19.0"
   },
   "bin": {
-    "pi-worker": "./scripts/pi-worker.mjs"
+    "spot": "./scripts/spot.mjs",
+    "pi-worker": "./scripts/spot.mjs"
   },
   "files": [
     "scripts/",
@@ -16,36 +17,46 @@
     "fixtures/",
     "references/",
     "agents/",
+    "docs/",
     "SKILL.md"
   ],
   "scripts": {
     "test": "node --test --test-concurrency=1 tests/*.test.mjs",
-    "check:syntax": "node --check scripts/pi-worker.mjs && node --check scripts/install-config.mjs && node --check scripts/codex-meter.mjs",
+    "check:syntax": "node --check scripts/spot.mjs && node --check scripts/install-config.mjs && node --check scripts/codex-meter.mjs",
     "check": "npm run check:syntax && npm test",
-    "serve": "node scripts/pi-worker.mjs serve",
-    "dashboard": "node scripts/pi-worker.mjs dashboard",
+    "serve": "node scripts/spot.mjs serve",
+    "dashboard": "node scripts/spot.mjs dashboard",
     "postinstall": "node scripts/install-config.mjs"
   },
   "keywords": [
-    "pi-cli",
+    "pi-package",
+    "agent-workers",
+    "subagent",
     "agent",
+    "multi-agent",
     "delegate",
-    "codex",
+    "orchestration",
     "claude-code",
+    "codex",
+    "opencode",
+    "kimi",
+    "qoder",
+    "codebuddy",
     "trae",
     "cursor",
-    "automation",
-    "monitoring",
+    "cost-saving",
+    "quota",
+    "token-saving",
     "dashboard",
-    "worker"
+    "cli"
   ],
   "license": "AGPL-3.0-or-later",
-  "homepage": "https://github.com/hLxiao9/pi-delegate#readme",
+  "homepage": "https://github.com/hLxiao9/spotworkers#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hLxiao9/pi-delegate.git"
+    "url": "git+https://github.com/hLxiao9/spotworkers.git"
   },
   "bugs": {
-    "url": "https://github.com/hLxiao9/pi-delegate/issues"
+    "url": "https://github.com/hLxiao9/spotworkers/issues"
   }
 }

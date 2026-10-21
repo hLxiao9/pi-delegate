@@ -1,5 +1,5 @@
 /*
- * pi-delegate - Parent-agent-owned Pi implementation worker
+ * spotworkers - Delegate bounded coding tasks to cheap agent workers
  * Copyright (C) 2026 hLxiao9
  *
  * Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
@@ -20,7 +20,7 @@ test('SKILL frontmatter is discoverable and contains only name and description',
   assert.ok(match, 'frontmatter missing');
   const keys = match[1].split('\n').filter(Boolean).map((line) => line.split(':', 1)[0]);
   assert.deepEqual(keys, ['name', 'description']);
-  assert.match(match[1], /^name: pi-delegate$/m);
+  assert.match(match[1], /^name: spotworkers$/m);
   assert.match(match[1], /^description: Use when /m);
 });
 
@@ -42,6 +42,6 @@ test('all direct references and disabled pre-release UI metadata are present', a
     await readFile(path.join(root, relative), 'utf8');
   }
   const metadata = await readFile(path.join(root, 'agents', 'openai.yaml'), 'utf8');
-  assert.match(metadata, /default_prompt: "Use \$pi-delegate/);
+  assert.match(metadata, /default_prompt: "Use \$spotworkers/);
   assert.match(metadata, /allow_implicit_invocation: false/);
 });

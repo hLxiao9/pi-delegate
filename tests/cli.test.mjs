@@ -1,5 +1,5 @@
 /*
- * pi-delegate - Parent-agent-owned Pi implementation worker
+ * spotworkers - Delegate bounded coding tasks to cheap agent workers
  * Copyright (C) 2026 hLxiao9
  *
  * Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
@@ -13,7 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { runNode } from './helpers.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const cli = path.join(root, 'scripts', 'pi-worker.mjs');
+const cli = path.join(root, 'scripts', 'spot.mjs');
 
 test('--help exposes the stable subcommand surface', async () => {
   const result = await runNode(cli, ['--help']);

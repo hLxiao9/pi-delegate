@@ -12,7 +12,7 @@ body:
     attributes:
       label: What happened?
       description: A clear description of the unexpected behavior. Include the smallest task JSON / review JSON that reproduces it.
-      placeholder: "I ran `pi-worker run --id ...` and ..."
+      placeholder: "I ran `spot run --id ...` and ..."
     validations:
       required: true
   - type: textarea
@@ -25,15 +25,15 @@ body:
   - type: textarea
     id: doctor
     attributes:
-      label: "`pi-worker doctor` output"
-      description: Run `pi-worker doctor --task <your-task.json>` and paste the JSON. Redact any keys.
+      label: "`spot doctor` output"
+      description: Run `spot doctor --task <your-task.json>` and paste the JSON. Redact any keys.
       render: shell
     validations:
       required: true
   - type: textarea
     id: inspect
     attributes:
-      label: "`pi-worker inspect --id <run-id>` output"
+      label: "`spot inspect --id <run-id>` output"
       description: For a failing run, paste the inspect JSON. Redact secrets.
       render: shell
     validations:

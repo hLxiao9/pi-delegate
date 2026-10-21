@@ -14,23 +14,23 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
 # Color output
-say() { printf "\033[1;36m[pi-delegate]\033[0m %s\n" "$1"; }
-warn() { printf "\033[1;33m[pi-delegate]\033[0m %s\n" "$1" >&2; }
-err() { printf "\033[1;31m[pi-delegate]\033[0m %s\n" "$1" >&2; }
+say() { printf "\033[1;36m[spotworkers]\033[0m %s\n" "$1"; }
+warn() { printf "\033[1;33m[spotworkers]\033[0m %s\n" "$1" >&2; }
+err() { printf "\033[1;31m[spotworkers]\033[0m %s\n" "$1" >&2; }
 
-# 1. Detect pi-worker command
-if ! command -v pi-worker >/dev/null 2>&1; then
-  # In-repo fallback: Try the local scripts/pi-worker.mjs
-  LOCAL_ENTRY="$SCRIPT_DIR/scripts/pi-worker.mjs"
+# 1. Detect spot command
+if ! command -v spot >/dev/null 2>&1; then
+  # In-repo fallback: Try the local scripts/spot.mjs
+  LOCAL_ENTRY="$SCRIPT_DIR/scripts/spot.mjs"
   if [ -f "$LOCAL_ENTRY" ]; then
-  say "Global not found pi-worker, using local repo entry."
+  say "Global not found spot, using local repo entry."
   say "Hint: run \\`npm link\\` can register the global command."
   PI_WORKER="node $LOCAL_ENTRY"
   else
-  err "not found pi-worker command."
+  err "not found spot command."
   echo ""
   echo "Please install first: "
-  echo "  npm install -g pi-delegate"
+  echo "  npm install -g spotworkers"
   echo ""
   echo "Or in development mode within this repo: "
   echo "  npm link"
@@ -39,7 +39,7 @@ if ! command -v pi-worker >/dev/null 2>&1; then
   exit 1
   fi
 else
-  PI_WORKER="pi-worker"
+  PI_WORKER="spot"
 fi
 
 # 2. Port(supports environment variable override)

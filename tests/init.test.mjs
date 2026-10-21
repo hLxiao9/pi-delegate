@@ -1,5 +1,5 @@
 /*
- * pi-delegate - Parent-agent-owned Pi implementation worker
+ * spotworkers - Delegate bounded coding tasks to cheap agent workers
  * Copyright (C) 2026 hLxiao9
  *
  * Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
@@ -259,7 +259,7 @@ test('initCommand summary ends with a doctor recommendation when default is conf
   await initCommand({}, { env, paths, io });
 
   const out = getOutput(io);
-  assert.match(out, /next step:\s+pi-worker doctor/);
+  assert.match(out, /next step:\s+spot doctor/);
 });
 
 test('loadConfig auto-installs default config on ENOENT (Fix 9)', async () => {

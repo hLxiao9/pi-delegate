@@ -1,9 +1,11 @@
 ---
-name: pi-delegate
-description: Use when a user explicitly invokes $pi-delegate, asks the parent agent to delegate a bounded code implementation to Pi CLI / Kimi Code CLI / Trae CLI / Qoder CLI / CodeBuddy CLI (WorkBuddy) or a cheaper coding model, or requests unattended coding completion across projects. Supports multiple CLI backends via the adapter system (pi/kimi/trae/qoder/opencode/codebuddy).
+name: spotworkers
+description: Use when a user explicitly invokes $pi-delegate or $spotworkers, asks the parent agent to delegate a bounded code implementation to a cheap agent worker (Pi CLI / Kimi Code CLI / Trae CLI / Qoder CLI / CodeBuddy CLI, i.e. WorkBuddy) or a cheaper coding model, or requests unattended coding completion across projects. Supports multiple CLI backends via the adapter system (pi/kimi/trae/qoder/opencode/codebuddy). Formerly published as pi-delegate; the `pi-worker` command remains an alias for `spot`.
 ---
 
-# Pi Delegate
+# Spotworkers
+
+> Formerly `pi-delegate`. The CLI binary is `spot` (alias: `pi-worker`). State, config and cache directories keep the historical `pi-worker` name so existing installs keep working.
 
 ## Core principle
 
@@ -11,7 +13,7 @@ Keep architecture, acceptance criteria, independent verification, review, and co
 
 ## Multi-parent dispatch
 
-The skill is parent-agnostic. Set `PARENT_AGENT` (and, when applicable, `PARENT_THREAD_ID`) in the environment that invokes `pi-worker prepare` so usage tracking and dashboard traffic source are routed correctly:
+The skill is parent-agnostic. Set `PARENT_AGENT` (and, when applicable, `PARENT_THREAD_ID`) in the environment that invokes `spot prepare` so usage tracking and dashboard traffic source are routed correctly:
 
 | `PARENT_AGENT` | Usage backend | Notes |
 |---|---|---|
@@ -25,7 +27,7 @@ The skill is parent-agnostic. Set `PARENT_AGENT` (and, when applicable, `PARENT_
 
 The `prepare` command records the resolved caller into `state.caller` (one of `trae`, `codex`, `claude-code`, `cursor`, `pi-recursive`, `workbuddy`, `cli`, `unknown`). The dashboard groups runs by caller and the Source column / filter recognises `workbuddy`. `list --caller <name>` filters accordingly.
 
-Caller resolution order: explicit `PARENT_AGENT` / `PI_WORKER_CALLER` → WorkBuddy shell marker (`WORKBUDDY` / `WORKBUDDY_AGENT`) → `cli`. When the WorkBuddy agent invokes pi-delegate, exporting `PARENT_AGENT=workbuddy` (or relying on the `WORKBUDDY` marker) makes the dashboard attribute runs to the **workbuddy** source instead of the generic `cli`.
+Caller resolution order: explicit `PARENT_AGENT` / `PI_WORKER_CALLER` → WorkBuddy shell marker (`WORKBUDDY` / `WORKBUDDY_AGENT`) → `cli`. When the WorkBuddy agent invokes spotworkers, exporting `PARENT_AGENT=workbuddy` (or relying on the `WORKBUDDY` marker) makes the dashboard attribute runs to the **workbuddy** source instead of the generic `cli`.
 
 ## Automatic model selection by difficulty
 
@@ -41,15 +43,15 @@ Difficulty is inferred by `lib/difficulty.mjs` from task signals: goal length, a
 
 To override auto-selection, pass `--profile <name>` to `doctor`/`prepare`. To disable auto-selection entirely, leave `costTier` off your profiles; the skill then falls back to `defaultProfile`.
 
-Ten profiles ship in `fixtures/default-config.json` covering the Pi-backed providers — `volcengine` (standard), `deepseek` (cheap), `kimi` (standard), `minimax-m3` (premium), `gemini-vision` (premium, vision modality), `gpt-image` (premium, image-output modality) — plus four alternate-CLI profiles: `kimi-cli` (Kimi Code CLI adapter), `trae-cli` (Trae CLI adapter, OAuth login), `qoder-cli` (Qoder **CN** CLI adapter — binary `qoderclicn`, installed via `curl -fsSL https://qoder.com.cn/install | bash`; authenticate with a Personal Access Token from the qoder.cn account integrations page exported as `QODERCN_PERSONAL_ACCESS_TOKEN`. Ships with `model: free`, which resolves at dispatch time to the cheapest model the account can currently reach. Pricing comes from `GET https://api.qoder.com.cn/api/v1/cloud/models` (cached 30 min in `~/.cache/pi-worker/qoder-models.json`), not from `--list-models`, which prints a bare name column. Observed roster and multipliers: `DeepSeek-Flash` 0x, `Qwen3.8-Flash` 0x, `GLM-5.3-Flash` / `MiniMax-M3.1-Flash` / `Qwen3.7-Plus` 0.1x, `Auto` / `Qwen3.8-Max` / `DeepSeek-V4-Pro` 0.5x, `Fast` / `GLM-5.3` / `Kimi-K2.8-Preview` 0.8x, `Kimi-K3` 1.4x — but never hardcode this; the roster changes weekly (`pi-worker detect` prints the live table). The catalog also carries per-model `efforts` and `available_context_windows`, so `reasoningEffort` / `maxContextSize` are validated against the pinned model and snapped to a legal neighbour instead of failing the run (the adjustment is recorded as a `worker_warning` event). PITFALL: the CN build silently ignores the international `QODER_PERSONAL_ACCESS_TOKEN` and stays at "Not logged in"; without `-p/--print` it opens an interactive TUI that hangs the worker; and it reports all `usage.*_tokens` as 0, billing in `total_credits` instead), and `codebuddy-cli` (CodeBuddy Code CLI, `npm i -g @tencent-ai/codebuddy-code`, default model `deepseek-v4.1-flash`; OAuth login via `codebuddy` → `/login`; the headless copy bundled in WorkBuddy.app cannot log in and is not used; no `costTier`, so it is only used with `--profile codebuddy-cli`; an unauthenticated run exits 0, which the adapter classifies as `auth`). Add or edit profiles in `~/.config/pi-worker/config.json`; each profile may set `costTier: cheap | standard | premium`, `strengths: string[]`, and `modalities: string[]`. The `apiKeyEnv` field in `~/.config/pi-worker/config.json` and the `$VAR` reference in `~/.pi/agent/models.json` must point to the same environment variable name — `pi-worker doctor` detects mismatches and suggests the correct name.
+Ten profiles ship in `fixtures/default-config.json` covering the Pi-backed providers — `volcengine` (standard), `deepseek` (cheap), `kimi` (standard), `minimax-m3` (premium), `gemini-vision` (premium, vision modality), `gpt-image` (premium, image-output modality) — plus four alternate-CLI profiles: `kimi-cli` (Kimi Code CLI adapter), `trae-cli` (Trae CLI adapter, OAuth login), `qoder-cli` (Qoder **CN** CLI adapter — binary `qoderclicn`, installed via `curl -fsSL https://qoder.com.cn/install | bash`; authenticate with a Personal Access Token from the qoder.cn account integrations page exported as `QODERCN_PERSONAL_ACCESS_TOKEN`. Ships with `model: free`, which resolves at dispatch time to the cheapest model the account can currently reach. Pricing comes from `GET https://api.qoder.com.cn/api/v1/cloud/models` (cached 30 min in `~/.cache/pi-worker/qoder-models.json`), not from `--list-models`, which prints a bare name column. Observed roster and multipliers: `DeepSeek-Flash` 0x, `Qwen3.8-Flash` 0x, `GLM-5.3-Flash` / `MiniMax-M3.1-Flash` / `Qwen3.7-Plus` 0.1x, `Auto` / `Qwen3.8-Max` / `DeepSeek-V4-Pro` 0.5x, `Fast` / `GLM-5.3` / `Kimi-K2.8-Preview` 0.8x, `Kimi-K3` 1.4x — but never hardcode this; the roster changes weekly (`spot detect` prints the live table). The catalog also carries per-model `efforts` and `available_context_windows`, so `reasoningEffort` / `maxContextSize` are validated against the pinned model and snapped to a legal neighbour instead of failing the run (the adjustment is recorded as a `worker_warning` event). PITFALL: the CN build silently ignores the international `QODER_PERSONAL_ACCESS_TOKEN` and stays at "Not logged in"; without `-p/--print` it opens an interactive TUI that hangs the worker; and it reports all `usage.*_tokens` as 0, billing in `total_credits` instead), and `codebuddy-cli` (CodeBuddy Code CLI, `npm i -g @tencent-ai/codebuddy-code`, default model `deepseek-v4.1-flash`; OAuth login via `codebuddy` → `/login`; the headless copy bundled in WorkBuddy.app cannot log in and is not used; no `costTier`, so it is only used with `--profile codebuddy-cli`; an unauthenticated run exits 0, which the adapter classifies as `auth`). Add or edit profiles in `~/.config/pi-worker/config.json`; each profile may set `costTier: cheap | standard | premium`, `strengths: string[]`, and `modalities: string[]`. The `apiKeyEnv` field in `~/.config/pi-worker/config.json` and the `$VAR` reference in `~/.pi/agent/models.json` must point to the same environment variable name — `spot doctor` detects mismatches and suggests the correct name.
 
 ## Environment detection & interactive worker picker
 
-At startup (and whenever you need a fresh view), run `pi-worker detect`. It probes every known worker CLI on this machine — `pi`, `kimi`, `trae`, `qoder`, `opencode` — records whether each is installed and, for adapters that can enumerate models, the full model list. Qoder's rows carry the live price multiplier and the per-model context/effort tiers, so "which of these is free?" is answerable from this table alone. Results are cached to `~/.cache/pi-worker/registry.json` for 10 minutes so dispatch stays cheap and a parent agent can read the cache to learn what's available here. OpenCode is also discovered via `~/.opencode/bin/opencode` even when it isn't on `PATH`.
+At startup (and whenever you need a fresh view), run `spot detect`. It probes every known worker CLI on this machine — `pi`, `kimi`, `trae`, `qoder`, `opencode` — records whether each is installed and, for adapters that can enumerate models, the full model list. Qoder's rows carry the live price multiplier and the per-model context/effort tiers, so "which of these is free?" is answerable from this table alone. Results are cached to `~/.cache/pi-worker/registry.json` for 10 minutes so dispatch stays cheap and a parent agent can read the cache to learn what's available here. OpenCode is also discovered via `~/.opencode/bin/opencode` even when it isn't on `PATH`.
 
 ```
-pi-worker detect
-# → Detected environment (pi-worker worker CLIs):
+spot detect
+# → Detected environment (spot worker CLIs):
 #     pi         v0.82.1  0 model(s)
 #     qoder      v1.1.73  12 model(s)  (2 free)
 #         - DeepSeek-Flash  [free] ctx 200K/400K/1M effort low|high|max
@@ -65,10 +67,10 @@ pi-worker detect
 
 Qoder accepts a price alias as a model name: `--model free` (also `qoder-free`, `cheapest`) pins whichever model currently has `price_factor: 0`, so a profile never has to name a model that may be delisted next week.
 
-When a human dispatches a task interactively (a TTY, no `PARENT_AGENT`/`PI_WORKER_CALLER` driving pi-delegate headlessly) and gives **no** explicit `--profile`/`--model`, `prepare` runs `detect`, shows the merged CLI+model table, and asks which one to use:
+When a human dispatches a task interactively (a TTY, no `PARENT_AGENT`/`PI_WORKER_CALLER` driving spotworkers headlessly) and gives **no** explicit `--profile`/`--model`, `prepare` runs `detect`, shows the merged CLI+model table, and asks which one to use:
 
 ```
-pi-worker prepare --task TASK.json
+spot prepare --task TASK.json
 # → Available worker CLIs and models:
 #   * 1. opencode  opencode/hy3-free [free]
 #     2. opencode  opencode/nemotron-3.5-lightning-free [free]
@@ -77,7 +79,7 @@ pi-worker prepare --task TASK.json
 #   Select worker [1-15] (Enter = opencode opencode/hy3-free):
 ```
 
-The table merges detected models (the full opencode list, etc.) with configured profiles, and drops any CLI that detection found not installed. Explicit flags or a parent agent skip the prompt and keep the existing auto-routing / `--profile` / `--model` behavior. Pass `--select-worker true` to force the prompt even under a parent agent, or `--select-model true` for the model-only variant. A parent agent that wants to drive dispatch should read `registry.json` (or `pi-worker detect`) and pass `--profile`/`--model` explicitly so the CLI+model choice is made once, not per task.
+The table merges detected models (the full opencode list, etc.) with configured profiles, and drops any CLI that detection found not installed. Explicit flags or a parent agent skip the prompt and keep the existing auto-routing / `--profile` / `--model` behavior. Pass `--select-worker true` to force the prompt even under a parent agent, or `--select-model true` for the model-only variant. A parent agent that wants to drive dispatch should read `registry.json` (or `spot detect`) and pass `--profile`/`--model` explicitly so the CLI+model choice is made once, not per task.
 
 ## Route first
 
@@ -89,7 +91,7 @@ The Pi worker requires a Git repository. In a non-Git project, stay in the paren
 
 ## Closed loop
 
-Use `/Users/xiao9/.agents/skills/pi-delegate/scripts/pi-worker.mjs`; run it with `node`.
+Use `/Users/xiao9/.agents/skills/pi-delegate/scripts/spot.mjs`; run it with `node`.
 
 1. Confirm the Git root, choose a unique run ID, and immediately run `parent-meter.mjs --output /tmp/pi-worker-ID-parent-start.json` before detailed planning. (`codex-meter.mjs` remains as a deprecated alias if your workflow already calls it.)
 2. Read project instructions; record HEAD and dirty status; define exact allowed/forbidden paths, acceptance criteria, and argv-form verification. Create a task JSON matching `schemas/task-contract.schema.json`. Create temporary JSON files with `apply_patch`, never shell redirection.
@@ -100,7 +102,7 @@ Use `/Users/xiao9/.agents/skills/pi-delegate/scripts/pi-worker.mjs`; run it with
 7. When every gate passes, write `verdict: approve`. Call `approve` immediately without asking the user, then `integrate`. A dirty or changed source must remain on the worker branch and report `blocked`; never stash, reset, checkout, or mix user changes.
 8. For every created run, call `report`; pass `--chatgpt-image-generations N` when the same user task used ChatGPT web for images. If `doctor` fails before `prepare`, report that setup blocker directly because no run exists. Call `cleanup` only after successful integration and report persistence. Preserve failed/blocked worktrees and logs.
 
-If a parent thread resumes after interruption, read the persisted `state.json` and reissue only the command corresponding to its current state. `run` and `revise` consume their Pi-turn receipt or terminal event evidence; never restart the entire workflow or recreate an existing run. If an active phase was interrupted and the lock owner is gone, call `pi-worker recover --id <run-id>` first: a partial worktree is sent to `verify`, while an empty worktree is sent back to `run`/`revise`. A live lock is never stolen.
+If a parent thread resumes after interruption, read the persisted `state.json` and reissue only the command corresponding to its current state. `run` and `revise` consume their Pi-turn receipt or terminal event evidence; never restart the entire workflow or recreate an existing run. If an active phase was interrupted and the lock owner is gone, call `spot recover --id <run-id>` first: a partial worktree is sent to `verify`, while an empty worktree is sent back to `run`/`revise`. A live lock is never stolen.
 
 ## Self-review (parent token saver)
 
@@ -123,7 +125,7 @@ If a parent thread resumes after interruption, read the persisted `state.json` a
 
 The worker persists every run under `~/.local/state/pi-worker/runs/<run-id>/` (state.json, pi-events.jsonl, metrics.json, report.md). Query it without touching the worker:
 
-- `pi-worker list [--status <status>] [--caller <caller>] [--running]` — JSON array of runs. `--running` filters to active states (prepared/running/verifying/reviewing/revising).
+- `spot list [--status <status>] [--caller <caller>] [--running]` — JSON array of runs. `--running` filters to active states (prepared/running/verifying/reviewing/revising).
 
 ## Live worker monitoring (tmux)
 
@@ -139,18 +141,18 @@ scripts/pi-tmux-monitor --kill     # tear down the session
 
 It auto-discovers active runs (state `status` ∈ prepared/running/verifying/selfReviewing/reviewing/revising, or a fresh `worker.log` with no state yet), opens one pane each via `tmux split-window` + `tiled` layout, and attaches. Re-running attaches to the existing session instead of rebuilding. Requires `tmux` (`brew install tmux`). For a single run you can also just `tail -f ~/.local/state/pi-worker/runs/<run-id>/worker.log` in any terminal.
 
-To review a finished OpenCode conversation inside the OpenCode client itself: `opencode session` lists sessions, `opencode export <id>` dumps the full transcript as JSON. Note `opencode run` (headless, used by pi-delegate) may not always register an interactive session — the `worker.log` is the authoritative per-run transcript either way.
+To review a finished OpenCode conversation inside the OpenCode client itself: `opencode session` lists sessions, `opencode export <id>` dumps the full transcript as JSON. Note `opencode run` (headless, used by spotworkers) may not always register an interactive session — the `worker.log` is the authoritative per-run transcript either way.
 
 ## Parallel execution
 
-Multiple parent-agent sessions (e.g. one Codex + one Claude Code, or several Trae windows) can run pi-worker concurrently. Each run gets an isolated Git worktree, state directory, and per-run file lock (`~/.local/state/pi-worker/runs/<id>/state.lock`), so different runs never collide and the same run is never advanced by two processes at once. `list --running` shows active runs; the dashboard reads state.json with JSON-parse tolerance so a snapshot never crashes on a concurrent write.
+Multiple parent-agent sessions (e.g. one Codex + one Claude Code, or several Trae windows) can run spot concurrently. Each run gets an isolated Git worktree, state directory, and per-run file lock (`~/.local/state/pi-worker/runs/<id>/state.lock`), so different runs never collide and the same run is never advanced by two processes at once. `list --running` shows active runs; the dashboard reads state.json with JSON-parse tolerance so a snapshot never crashes on a concurrent write.
 
-The `maxConcurrentRuns` config (default 4, range 1-16) caps how many runs may be in an active state simultaneously; `prepare` rejects with `CONCURRENCY_LIMIT` when the cap is hit. Tune it to match your API rate limits and local resources. Pi itself is stateless across sessions (each `pi-worker run` spawns its own Pi process), so there is no global Pi lock.
-- `pi-worker inspect --id <run-id>` — full state, metrics, verification, review, and Pi usage totals.
-- `pi-worker dashboard [--output <file>]` — single-page HTML dashboard (summary cards + run table + expandable detail rows, filterable by caller and status). The generated HTML is a snapshot; rerun the command to refresh.
-- `pi-worker serve [--port <port>] [--no-open]` — start a live HTTP dashboard at `http://localhost:<port>/` (default port 7317). The page exposes a "Refresh" button (per panel, at the top) that fetches `/api/fragment` and replaces the dashboard body in place, plus an **Auto-refresh (60s)** toggle (persisted in localStorage) that polls every 60s and also refreshes when the tab regains focus/visibility — a cheap alternative to a full browser reload (F5). Routes: `GET /` (HTML), `GET /api/fragment` (rendered HTML fragment for refresh), `GET /api/runs` (raw JSON of state + metrics), `GET /api/connections` (adapter + profile status), `GET /health`. Ctrl+C to stop. Use this for real-time monitoring; do **not** rely on `file://`-opened `dashboard.html` for fresh data.
+The `maxConcurrentRuns` config (default 4, range 1-16) caps how many runs may be in an active state simultaneously; `prepare` rejects with `CONCURRENCY_LIMIT` when the cap is hit. Tune it to match your API rate limits and local resources. Pi itself is stateless across sessions (each `spot run` spawns its own Pi process), so there is no global Pi lock.
+- `spot inspect --id <run-id>` — full state, metrics, verification, review, and Pi usage totals.
+- `spot dashboard [--output <file>]` — single-page HTML dashboard (summary cards + run table + expandable detail rows, filterable by caller and status). The generated HTML is a snapshot; rerun the command to refresh.
+- `spot serve [--port <port>] [--no-open]` — start a live HTTP dashboard at `http://localhost:<port>/` (default port 7317). The page exposes a "Refresh" button (per panel, at the top) that fetches `/api/fragment` and replaces the dashboard body in place, plus an **Auto-refresh (60s)** toggle (persisted in localStorage) that polls every 60s and also refreshes when the tab regains focus/visibility — a cheap alternative to a full browser reload (F5). Routes: `GET /` (HTML), `GET /api/fragment` (rendered HTML fragment for refresh), `GET /api/runs` (raw JSON of state + metrics), `GET /api/connections` (adapter + profile status), `GET /health`. Ctrl+C to stop. Use this for real-time monitoring; do **not** rely on `file://`-opened `dashboard.html` for fresh data.
 
-`prepare` records the invoking caller into `state.caller` from `PARENT_AGENT` / `PI_WORKER_CALLER` (`trae`, `codex`, `claude-code`, `cursor`, `pi-recursive`, `workbuddy`, `cli`; anything else becomes `unknown`). Set it in the environment that invokes `pi-worker prepare` so the dashboard can distinguish traffic sources.
+`prepare` records the invoking caller into `state.caller` from `PARENT_AGENT` / `PI_WORKER_CALLER` (`trae`, `codex`, `claude-code`, `cursor`, `pi-recursive`, `workbuddy`, `cli`; anything else becomes `unknown`). Set it in the environment that invokes `spot prepare` so the dashboard can distinguish traffic sources.
 
 ## Final response
 

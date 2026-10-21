@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://local.pi-worker.invalid/review-result.schema.json",
+  "$id": "https://local.spot.invalid/review-result.schema.json",
   "title": "Parent Review Result",
   "type": "object",
   "additionalProperties": false,

@@ -1,5 +1,5 @@
 /*
- * pi-delegate - Parent-agent-owned Pi implementation worker
+ * spotworkers - Delegate bounded coding tasks to cheap agent workers
  * Copyright (C) 2026 hLxiao9
  *
  * Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
@@ -141,7 +141,7 @@ test('buildCredentialHint suggests the export line when nothing is configured', 
   // export is invisible to GUI-launched and non-interactive processes
   assert.match(hint, /export VOLCENGINE_API_KEY=YOUR_KEY/);
   assert.match(hint, /\.config\/pi-worker\/credentials\.env/);
-  assert.match(hint, /pi-worker doctor/);
+  assert.match(hint, /spot doctor/);
 });
 
 test('loadShellProfileEnv reads ~/.config/pi-worker/credentials.env before shell profiles', async () => {

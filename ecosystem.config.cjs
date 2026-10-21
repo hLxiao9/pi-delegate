@@ -1,10 +1,10 @@
 module.exports = {
   apps: [
     {
-      name: 'pi-delegate-dashboard',
-      cwd: '/Users/xiao9/.agents/skills/pi-delegate',
+      name: 'spotworkers-dashboard',
+      cwd: '/Users/xiao9/.agents/skills/spotworkers',
       script: '/Users/xiao9/.workbuddy/binaries/node/versions/22.22.2/bin/node',
-      args: 'scripts/pi-worker.mjs serve --port 7317 --no-open',
+      args: 'scripts/spot.mjs serve --port 7317 --no-open',
       instances: 1,
       autorestart: true,
       watch: false,

@@ -1,5 +1,5 @@
 /*
- * pi-delegate - Parent-agent-owned Pi implementation worker
+ * spotworkers - Delegate bounded coding tasks to cheap agent workers
  * Copyright (C) 2026 hLxiao9
  *
  * Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 
-export async function makeTempDir(prefix = 'pi-delegate-') {
+export async function makeTempDir(prefix = 'spotworkers-') {
   return mkdtemp(path.join(tmpdir(), prefix));
 }
 
@@ -53,7 +53,7 @@ export async function initGitRepo(root) {
   await mkdir(root, { recursive: true });
   await runProcess('git', ['init', '-b', 'main'], { cwd: root });
   await runProcess('git', ['config', 'user.name', 'Pi Worker Test'], { cwd: root });
-  await runProcess('git', ['config', 'user.email', 'pi-worker@example.invalid'], { cwd: root });
+  await runProcess('git', ['config', 'user.email', 'spot@example.invalid'], { cwd: root });
   await writeFile(path.join(root, 'README.md'), '# fixture\n');
   await runProcess('git', ['add', 'README.md'], { cwd: root });
   await runProcess('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'commit.gpgSign=false', 'commit', '-m', 'test: initial fixture'], { cwd: root });

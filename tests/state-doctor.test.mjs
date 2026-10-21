@@ -1,5 +1,5 @@
 /*
- * pi-delegate - Parent-agent-owned Pi implementation worker
+ * spotworkers - Delegate bounded coding tasks to cheap agent workers
  * Copyright (C) 2026 hLxiao9
  *
  * Licensed under the GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later).
@@ -17,7 +17,7 @@ import { createRun, loadRun, transition, updateRun, withRunLock } from '../lib/s
 import { makeTempDir, runNode, writeExecutable } from './helpers.mjs';
 
 const root = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
-const cli = path.join(root, 'scripts', 'pi-worker.mjs');
+const cli = path.join(root, 'scripts', 'spot.mjs');
 
 async function fixture() {
   const home = await makeTempDir('pi-doctor-');

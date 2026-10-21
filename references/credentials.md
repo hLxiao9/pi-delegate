@@ -11,7 +11,7 @@ Credentials are **environment variables, nothing else**. `config.json` stores on
 Why it is enforced this way:
 
 - `config.json` gets backed up, synced across machines, pasted into issues and screenshotted. An env var does not.
-- Nothing in pi-worker writes a credential to disk. Error output passes through `redactDiagnostic()`, which has an explicit allowlist (`causeCode`, `category`, `command`, `exitCode`, `runId`, `timedOut`) — an accidental `details: { token }` is dropped rather than logged.
+- Nothing in spot writes a credential to disk. Error output passes through `redactDiagnostic()`, which has an explicit allowlist (`causeCode`, `category`, `command`, `exitCode`, `runId`, `timedOut`) — an accidental `details: { token }` is dropped rather than logged.
 - Prompts travel over stdin, not argv, so the value never shows up in `ps` / `/proc/<pid>/cmdline`.
 
 ## Where to put them
@@ -36,7 +36,7 @@ export DEEPSEEK_API_KEY="..."
 [ -f "$HOME/.config/pi-worker/credentials.env" ] && . "$HOME/.config/pi-worker/credentials.env"
 ```
 
-> **Use `~/.zshenv`, not `~/.zshrc`.** zsh reads `.zshenv` for *every* invocation, including the non-interactive shells that agents, CI runners, cron and `ssh host 'cmd'` use. `.zshrc` is interactive-only, which produces the most confusing failure mode there is: the key works in your terminal but `pi-worker doctor` (spawned headlessly) insists the credential is missing.
+> **Use `~/.zshenv`, not `~/.zshrc`.** zsh reads `.zshenv` for *every* invocation, including the non-interactive shells that agents, CI runners, cron and `ssh host 'cmd'` use. `.zshrc` is interactive-only, which produces the most confusing failure mode there is: the key works in your terminal but `spot doctor` (spawned headlessly) insists the credential is missing.
 >
 > Bash users: `~/.bash_profile` is login-only and `~/.bashrc` is interactive-only. Source the file from both, or export directly in the process that launches the worker.
 
@@ -59,7 +59,7 @@ Alternatives that are also fine: a real secret manager (`op run`, `direnv`, vaul
 | `codebuddy-cli` | codebuddy | *(none)* | OAuth login only. |
 | `opencode*` | opencode | *(none)* | Free-tier models. |
 
-The name in this table must also match the `$VAR` reference in `~/.pi/agent/models.json`. A mismatch produces silent 401s; `pi-worker doctor` detects it.
+The name in this table must also match the `$VAR` reference in `~/.pi/agent/models.json`. A mismatch produces silent 401s; `spot doctor` detects it.
 
 ## Adapter exceptions
 
@@ -79,7 +79,7 @@ The adapter runs the worker with an isolated `HOME`, which means interactive `/l
 ## Verify
 
 ```bash
-pi-worker doctor --profile qoder-cli
+spot doctor --profile qoder-cli
 ```
 
 A ready profile returns `{"ok":true,"status":"ready"}` with a `credential` check. A missing variable returns `DOCTOR_FAILED` naming the exact variable and the `export` line to add.
@@ -90,12 +90,12 @@ A ready profile returns `{"ok":true,"status":"ready"}` with a `credential` check
 
 1. Regenerate the token at the provider (for Qoder: qoder.cn → account → integrations; the value cannot be retrieved again after the page closes).
 2. Edit `~/.config/pi-worker/credentials.env` in place.
-3. Open a new shell (or `source` the file), then re-run `pi-worker doctor --profile <name>`.
+3. Open a new shell (or `source` the file), then re-run `spot doctor --profile <name>`.
 
 Rotating mid-run does not affect a run already in flight: the worker process holds its copy of the environment.
 
 ## Never
 
 - Put a value in `config.json`, a task file, or a commit — `alwaysForbiddenPaths` blocks `.env*`, `*credential*` and `*secret*` from the worker's own edits, but that guard does not protect you from committing by hand.
-- Pass a token as a CLI argument (`--api-key sk-...`). It lands in `ps` and in shell history. pi-worker pipes prompts over stdin for the same reason.
+- Pass a token as a CLI argument (`--api-key sk-...`). It lands in `ps` and in shell history. spot pipes prompts over stdin for the same reason.
 - Paste a token into a review file, a report, or a chat message. `report.md` and `metrics.json` are generated artifacts that get shared.

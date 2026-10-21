@@ -53,7 +53,7 @@ an individual is officially representing the community in public spaces.
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the maintainers responsible for enforcement by opening a private
 GitHub Security Advisory at
-<https://github.com/hLxiao9/pi-delegate/security/advisories/new>
+<https://github.com/hLxiao9/spotworkers/security/advisories/new>
 (forward it to the maintainer there) or by emailing the maintainer via the
 email listed on the GitHub profile.
 
