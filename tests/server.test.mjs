@@ -102,7 +102,7 @@ test('GET / returns live HTML with refresh button and dashboard-body', async () 
   try {
   const { status, text } = await fetchText(url + '/');
   assert.equal(status, 200);
-  assert.match(text, /Pi Worker Dashboard/);
+  assert.match(text, /Spotworkers Dashboard/);
   assert.match(text, /html-run/);
   assert.match(text, /class="panel-refresh-btn"/);
   assert.match(text, /id="dashboard-body"/);

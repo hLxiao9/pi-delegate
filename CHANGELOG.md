@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A signal that arrives before the worker is spawned is no longer lost.** `abortActiveProcesses()` found nothing to abort in the window between persisting `running` and registering the child, returned silently, and the run then waited on a worker nobody would stop: status stayed `running`, the lock stayed held, and the command never exited. The interrupt reason is now remembered and applied to the next spawned process, so an early `SIGTERM` still ends as `PI_INTERRUPTED` with a released lock and a recoverable run. Reproduced deterministically on macOS; `tests/recovery.test.mjs` now covers it without racing.
+- **Rename leftovers.** `SKILL.md` pointed at the deleted `/Users/xiao9/.agents/skills/pi-delegate/scripts/spot.mjs`, so an agent following the skill invoked a path that no longer exists; it now uses `spot` from `PATH` and falls back to the bundled `scripts/spot.mjs`. The dashboard/report/JSON-schema titles and the Pi interface metadata still said "Pi Worker" / "Pi Delegate" — they now say Spotworkers. Reference docs no longer hardcode `/Users/xiao9/...` paths in the published tarball.
+
 ## [0.2.0] - 2026-10-22
 
 ### Published

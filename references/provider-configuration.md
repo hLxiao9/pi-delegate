@@ -1,6 +1,6 @@
 # Provider Configuration
 
-Read this file only for setup, `doctor` failures, or a requested provider change. The active source of truth is `/Users/xiao9/.config/pi-worker/config.json`; credentials remain environment variables — where to put them, and the per-profile variable map, live in [`credentials.md`](./credentials.md).
+Read this file only for setup, `doctor` failures, or a requested provider change. The active source of truth is `~/.config/pi-worker/config.json`; credentials remain environment variables — where to put them, and the per-profile variable map, live in [`credentials.md`](./credentials.md).
 
 > **`apiKeyEnv` contract (read this first)**: the `apiKeyEnv` field in `~/.config/pi-worker/config.json` and the `$VAR` reference in `~/.pi/agent/models.json` must point to the **same** environment variable name. A mismatch (e.g., `apiKeyEnv: VOLCENGINE_API_KEY` in config but `$API_KEY` in models.json) causes silent 401s at run time. `spot doctor` detects this and suggests the correct name. The nine built-in profiles each pin a specific `apiKeyEnv`; if you rename one, update both files.
 
@@ -8,7 +8,7 @@ Read this file only for setup, `doctor` failures, or a requested provider change
 
 ```bash
 pi --no-extensions --no-skills --no-prompt-templates --no-themes --no-context-files --no-approve --list-models
-node /Users/xiao9/.agents/skills/spotworkers/scripts/spot.mjs doctor
+spot doctor
 ```
 
 Only use model IDs printed by the installed Pi version. Authentication failures stop immediately; they never trigger cross-provider fallback.
@@ -94,11 +94,11 @@ The selector only ever picks among the profiles you actually configure. This tab
 
 ## Volcengine Coding Plan
 
-The installer merges provider `volcengine-plan` into `/Users/xiao9/.pi/agent/models.json` with endpoint `https://ark.cn-beijing.volces.com/api/coding/v3`, model `ark-code-latest`, and key reference `$VOLCENGINE_API_KEY`.
+The installer merges provider `volcengine-plan` into `~/.pi/agent/models.json` with endpoint `https://ark.cn-beijing.volces.com/api/coding/v3`, model `ark-code-latest`, and key reference `$VOLCENGINE_API_KEY`.
 
 ```bash
 export VOLCENGINE_API_KEY='set-in-your-secret-manager-or-shell'
-node /Users/xiao9/.agents/skills/spotworkers/scripts/spot.mjs doctor
+spot doctor
 ```
 
 Set `monthlyPlan.amount` to the amount actually paid (for example promotional versus normal price); do not treat a public promotion as the user's invoice.
@@ -139,7 +139,7 @@ Merge one of these objects under `profiles`; retain `text`, `code`, and `tool-us
 Replace each zero monthly amount with the actual subscription or budget. Select the default by changing `defaultProfile`. Configure at most one `fallbackProfiles` entry and verify it independently with:
 
 ```bash
-node /Users/xiao9/.agents/skills/spotworkers/scripts/spot.mjs doctor --profile PROFILE_NAME
+spot doctor --profile PROFILE_NAME
 ```
 
 Visual and image tasks are delegated to Pi only when a profile advertising the matching `modalities` is configured. If no such profile exists, the selector returns null and the parent agent should report a setup blocker (or handle the task directly). The `chatgpt-image-generations` flag on `report` remains available for tracking image generations routed through ChatGPT web outside the Pi delegation path.

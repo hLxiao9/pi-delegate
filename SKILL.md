@@ -87,11 +87,11 @@ Delegate bounded features, bug fixes, tests, and mechanical refactors with deter
 
 Work directly in the parent agent when the task is trivial, architectural, high-risk (security/auth/production infrastructure/irreversible migration), or lacks reliable verification. Visual/image tasks are delegated to Pi when a profile advertising the matching `modalities` (`vision` for `vision-input`, `image-output` for `image-output`) is configured; if no such profile exists, report a setup blocker instead of falling back. For direct tasks, continue with the normal parent-agent workflow: implement, verify, inspect the actual diff, auto-commit only when the source is safe, and never push.
 
-The Pi worker requires a Git repository. In a non-Git project, stay in the parent agent, verify directly, and state that automatic commit is unavailable.
+Every delegated run requires a Git repository. In a non-Git project, stay in the parent agent, verify directly, and state that automatic commit is unavailable.
 
 ## Closed loop
 
-Use `/Users/xiao9/.agents/skills/pi-delegate/scripts/spot.mjs`; run it with `node`.
+Run `spot` from `PATH` (installed via `npm install -g spotworkers`; the `pi-worker` alias works too). If it is not on `PATH`, call the bundled entrypoint with `node <this-skill-directory>/scripts/spot.mjs` — in a checkout or this skill dir that is `node scripts/spot.mjs`.
 
 1. Confirm the Git root, choose a unique run ID, and immediately run `parent-meter.mjs --output /tmp/pi-worker-ID-parent-start.json` before detailed planning. (`codex-meter.mjs` remains as a deprecated alias if your workflow already calls it.)
 2. Read project instructions; record HEAD and dirty status; define exact allowed/forbidden paths, acceptance criteria, and argv-form verification. Create a task JSON matching `schemas/task-contract.schema.json`. Create temporary JSON files with `apply_patch`, never shell redirection.

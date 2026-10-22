@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://local.spot.invalid/task-contract.schema.json",
-  "title": "Pi Worker Task Contract",
+  "title": "Spotworkers Task Contract",
   "type": "object",
   "additionalProperties": false,
   "required": ["schemaVersion", "runId", "repositoryRoot", "baseRevision", "goal", "allowedPaths", "forbiddenPaths", "constraints", "acceptanceCriteria", "verification", "requiredCapabilities", "risk"],

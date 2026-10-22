@@ -159,7 +159,7 @@ test('dashboard generates HTML with run data, caller badges, and summary cards',
   const result = await dashboardCommand({ output: outputFile }, { env: {}, paths });
   assert.equal(result.runCount, 2);
   const html = await readFile(outputFile, 'utf8');
-  assert.match(html, /Pi Worker Dashboard/);
+  assert.match(html, /Spotworkers Dashboard/);
   assert.match(html, /dash-trae/);
   assert.match(html, /dash-codex/);
   assert.match(html, /trae/);

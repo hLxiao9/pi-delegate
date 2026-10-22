@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pi Worker Dashboard one-click launcher
+# Spotworkers Dashboard one-click launcher
 # macOS: double-click this file to open the live dashboard in your browser
 # Linux/generic: bash start-dashboard.command
 #
@@ -46,7 +46,7 @@ fi
 PORT="${PI_WORKER_PORT:-7317}"
 
 # 3. start serve(browser auto-opens by default)
-say "Starting Pi Worker Dashboard → http://localhost:${PORT}/"
+say "Starting Spotworkers Dashboard → http://localhost:${PORT}/"
 say "Click at the top-right of the page \"Refresh\" button to fetch the latest usage, or directly F5"
 say "Ctrl+C stop the service"
 echo ""

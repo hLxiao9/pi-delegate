@@ -2,7 +2,7 @@
 
 Read this file when: adding a provider, `doctor` reports a missing credential, or you are rotating/revoking a key.
 
-The active source of truth is `/Users/xiao9/.config/pi-worker/config.json` **for variable names only**; the values themselves never live in this repo or in that file.
+The active source of truth is `~/.config/pi-worker/config.json` **for variable names only**; the values themselves never live in this repo or in that file.
 
 ## The rule
 

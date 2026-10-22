@@ -1,6 +1,6 @@
 interface:
-  display_name: "Pi Delegate"
-  short_description: "Delegate code work through a reviewed Pi worker"
-  default_prompt: "Use $spotworkers to implement this coding task through the reviewed Pi worker."
+  display_name: "Spotworkers"
+  short_description: "Delegate code work through a reviewed agent worker"
+  default_prompt: "Use $spotworkers to implement this coding task through the reviewed agent worker."
 policy:
   allow_implicit_invocation: false
