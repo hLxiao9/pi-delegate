@@ -28,7 +28,7 @@ test('SKILL encodes the complete safe loop and stays concise', async () => {
   const source = await readFile(path.join(root, 'SKILL.md'), 'utf8');
   for (const phrase of [
     'doctor', 'prepare', 'run', 'verify', 'revise', 'approve', 'integrate', 'report', 'cleanup',
-    'vision-input', 'image-output', 'P0', 'P1', 'P2', 'Never push', 'Do not ask the user to review code', 'maxConcurrentRuns', 'PARENT_AGENT', 'Parallel execution', 'matching `modalities`'
+    'vision-input', 'image-output', 'P0', 'P1', 'P2', 'Never push', 'Do not ask the user to review code', 'maxConcurrentRuns', 'PARENT_AGENT', 'Parallel execution', 'references/scope.md', 'stays in the parent'
   ]) assert.ok(source.includes(phrase), phrase);
   assert.ok(source.split('\n').length < 500);
   const forbiddenDraftMarkers = ['TO' + 'DO', 'T' + 'BD', 'fill' + ' in', 'implement' + ' later'];
@@ -37,7 +37,7 @@ test('SKILL encodes the complete safe loop and stays concise', async () => {
 
 test('all direct references and disabled pre-release UI metadata are present', async () => {
   const source = await readFile(path.join(root, 'SKILL.md'), 'utf8');
-  for (const relative of ['references/review-policy.md', 'references/provider-configuration.md', 'schemas/task-contract.schema.json', 'schemas/review-result.schema.json']) {
+  for (const relative of ['references/review-policy.md', 'references/scope.md', 'references/provider-configuration.md', 'schemas/task-contract.schema.json', 'schemas/review-result.schema.json']) {
     assert.ok(source.includes(relative), relative);
     await readFile(path.join(root, relative), 'utf8');
   }

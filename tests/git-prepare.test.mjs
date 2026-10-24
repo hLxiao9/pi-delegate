@@ -120,6 +120,20 @@ test('prepare rejects an untracked absolute symlink that escapes the worker work
   await assertPrepareRejectsEscape(fixture);
 });
 
+test('an absolute symlink into the repository is rejected with the relative-link fix', async () => {
+  const fixture = await setup();
+  await mkdir(path.join(fixture.repositoryRoot, 'tools', 'map'), { recursive: true });
+  await mkdir(path.join(fixture.repositoryRoot, 'tools', 'board', 'public'), { recursive: true });
+  await symlink(path.join(fixture.repositoryRoot, 'tools', 'map'), path.join(fixture.repositoryRoot, 'tools', 'board', 'public', 'map'));
+  const result = await runNode(cli, ['prepare', '--task', fixture.taskFile], { env: fixture.env });
+  assert.equal(result.code, 1);
+  const { error } = JSON.parse(result.stderr);
+  assert.equal(error.code, 'SYMLINK_ESCAPE');
+  assert.match(error.message, /: tools\/board\/public\/map \(/);
+  assert.match(error.message, /ln -sfn \.\.\/\.\.\/map tools\/board\/public\/map\)/);
+  assert.doesNotMatch(error.message, new RegExp(fixture.repositoryRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), 'no absolute machine path in the message');
+});
+
 test('prepare rejects a tracked relative symlink that escapes the worker worktree', async () => {
   const fixture = await setup();
   await symlink('../../pi-worker-outside', path.join(fixture.repositoryRoot, 'escape-relative'));

@@ -63,7 +63,7 @@ async function buildFixture({ selfReviewJson, goal = 'Create the generated modul
   const config = JSON.parse(await readFile(paths.configFile, 'utf8'));
   config.retryDelaysMs = [0];
   // Force selfReview minDiffBytes=0 so the small fixture diff always qualifies
-  config.selfReview = { enabled: true, spotCheckCount: 1, minDiffBytes: 0 };
+  config.selfReview = { enabled: true, spotCheckCount: 1, minDiffBytes: 0, minSurfaceBytes: 0 };
   await writeFile(paths.configFile, JSON.stringify(config));
   const pi = path.join(home, 'bin', 'pi');
   await writeExecutable(pi, fakePiSource({ selfReviewJson }));
@@ -271,7 +271,7 @@ test('self-review skips when diff is too small', async () => {
   });
   // Set minDiffBytes high AFTER buildFixture (which sets it to 0) but BEFORE prepare
   const config = JSON.parse(await readFile(fixture.paths.configFile, 'utf8'));
-  config.selfReview = { enabled: true, spotCheckCount: 1, minDiffBytes: 10_000_000 };
+  config.selfReview = { enabled: true, spotCheckCount: 1, minDiffBytes: 10_000_000, minSurfaceBytes: 0 };
   await writeFile(fixture.paths.configFile, JSON.stringify(config));
   await runNode(cli, ['prepare', '--task', fixture.taskFile], { env: fixture.env });
   await runNode(cli, ['run', '--id', fixture.runId], { env: fixture.env });
@@ -297,7 +297,7 @@ test('self-review rejects when verification did not pass', async () => {
   await installDefaultConfiguration({ paths });
   const config = JSON.parse(await readFile(paths.configFile, 'utf8'));
   config.retryDelaysMs = [0];
-  config.selfReview = { enabled: true, spotCheckCount: 1, minDiffBytes: 0 };
+  config.selfReview = { enabled: true, spotCheckCount: 1, minDiffBytes: 0, minSurfaceBytes: 0 };
   await writeFile(paths.configFile, JSON.stringify(config));
   const pi = path.join(home, 'bin', 'pi');
   await writeExecutable(pi, fakePiSource({ selfReviewJson: { schemaVersion: 1, runId: 'r', diffSha256: 'x'.repeat(64), acceptanceEvidence: [{ criterion: 'x', status: 'met', evidence: [] }], findings: [], uncertainCriteria: [], summary: 'ok' } }));
@@ -341,7 +341,7 @@ test('self-review skips gracefully when Pi fails to return JSON', async () => {
   await installDefaultConfiguration({ paths });
   const config = JSON.parse(await readFile(paths.configFile, 'utf8'));
   config.retryDelaysMs = [0];
-  config.selfReview = { enabled: true, spotCheckCount: 1, minDiffBytes: 0 };
+  config.selfReview = { enabled: true, spotCheckCount: 1, minDiffBytes: 0, minSurfaceBytes: 0 };
   await writeFile(paths.configFile, JSON.stringify(config));
   // Fake pi that returns garbage in self-review mode
   const pi = path.join(home, 'bin', 'pi');

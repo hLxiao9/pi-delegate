@@ -86,8 +86,15 @@ test('report distinguishes Plus fixed cost, external plan amortization, and esti
   assert.equal(metrics.cash.providerPlan.currency, 'CNY');
   assert.equal(metrics.cash.cashSavingsAmount, 0);
   assert.deepEqual(metrics.visual, { route: 'chatgpt-web', generations: 0, delegatedToPi: false, excludedFromCodeSavings: true });
-  assert.match(await readFile(payload.reportFile, 'utf8'), /Counterfactual estimated/);
-  assert.match(await readFile(payload.reportFile, 'utf8'), /not pushed to remote/);
+  // The headline metric is the main-model saving, not the worker's cost.
+  assert.ok(metrics.parentSavings, 'metrics carry a parentSavings block');
+  assert.equal(metrics.parentSavings.counterfactual.outputTokenWeight, 4);
+  assert.ok(metrics.parentSavings.estimatedTokensAvoided >= 0);
+  const report = await readFile(payload.reportFile, 'utf8');
+  assert.match(report, /## Main-model savings/);
+  assert.match(report, /Main-model tokens avoided/);
+  assert.match(report, /Counterfactual: read/);
+  assert.match(report, /not pushed to remote/);
 
   const cleaned = await runNode(cli, ['cleanup', '--id', item.runId], { env: item.env });
   assert.equal(cleaned.code, 0, cleaned.stderr);

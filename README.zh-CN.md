@@ -28,18 +28,19 @@
 `doctor → prepare → run → verify → self-review → approve → integrate → report → cleanup`。wrapper 会自己重跑你的验证命令（不依赖 Pi 的自述），并且每个闸门都校验 diff 哈希 —— 哈希一变就阻断审批。
 
 ### 防作弊 self-review（主控端 token 省钱）
-主控端读完整 diff 之前，可选的第二个 Pi 回合会重读自己的产出，吐出紧凑的 `self-review.json`（约 50 行 vs 数千行）。5 重防作弊机制保证它诚实：
-- `verification.json` 由 wrapper 生成，不是 Pi —— Pi 无法对测试结果撒谎。
-- `diffSha256Mismatch=true`（Pi 回错哈希）→ 主控端回退全量审查。
-- `fallbackRecommended=true`（Pi 自报 `unmet`/`uncertain` 或任意 P0–P2）→ 主控端回退。
+主控端读完整 diff 之前，可选的第二个 worker 回合会重读自己的产出，吐出紧凑的 `self-review.json`（约 50 行 vs 数千行）。防作弊机制：
+- `verification.json` 由 wrapper 生成，不是 worker —— 它无法对测试结果撒谎。
+- `diffSha256Mismatch=true`（回错哈希）→ 主控端升级为全量审查。
+- `fallbackRecommended=true`（自报 `unmet`/`uncertain` 或任意 P0–P2）→ 主控端升级。
 - `approve` 会再扫一次 diff，哈希变了就拒。
 - 高危任务永远到不了 self-review（`HIGH_RISK_BLOCKED`）。
 
-self-review 永远不会卡住闭环 —— Pi 失败、JSON 解析失败、或 diff 小于 `minDiffBytes` 时，它会自动降级到 `reviewing` 并标 `skipped:true`。用 `selfReview.enabled=false` 完全关闭。
+self-review 永远不会卡住闭环 —— worker 失败、JSON 解析失败、diff 小于 `minDiffBytes`、或审查面（diff + 改动文件体积）小于 `minSurfaceBytes` 时，它会自动降级到 `reviewing` 并标 `skipped:true`。`minSurfaceBytes`（默认 4000）的理由是：报告约每条约 700 字节，而小 diff 直接读更便宜。用 `selfReview.enabled=false` 完全关闭；`selfReview.spotCheckRatio`（默认 0.34）调整按比例的抽查量。
 
 ### 硬性闸门与安全
 - 审批前必须：wrapper 验证通过、diff 哈希不变、安全扫描通过、有验收证据、**零未解决 P0–P2 问题**。
-- Pi 被当作不可信：永不开 Bash、extensions、Skills、prompt templates、context files、项目 auto-trust。
+- worker 不能改给它打分的装置：契约 `lockedPaths`、配置 `alwaysLockedPaths`（CI 与测试运行器配置）、以及 `package.json` 里决定执行方式的键（`scripts`、`jest`、`vitest`、`mocha`、`ava`、`nyc`、`c8`、`workspaces`、`packageManager`）全部冻结；依赖仍可改。违反即 `LOCKED_PATH_CHANGED` / `VERIFICATION_SCRIPT_CHANGED` 阻断。
+- worker 被当作不可信：永不开 Bash、extensions、Skills、prompt templates、context files、项目 auto-trust。
 - 永不 push、建 PR、改 remote，也不会把 worktree 隔离说成 OS 沙箱。
 - 永不绕过鉴权错误或能力不匹配 —— setup/凭证失败就是真 blocker。
 
@@ -53,13 +54,15 @@ self-review 永远不会卡住闭环 —— Pi 失败、JSON 解析失败、或 
 多个主控端会话可并发 —— 每个 run 有独立的 Git worktree、state 目录、per-run 文件锁，不同 run 互不碰撞，同一 run 不会被两个进程同时推进。`maxConcurrentRuns`（默认 4，范围 1–16）限制活动 run 数；超限 `prepare` 返回 `CONCURRENCY_LIMIT`。面板读 `state.json` 时容忍 JSON 解析失败，并发写入时快照不会崩。
 
 ### 按难度自动选模型
-任务信号（goal 长度、验收条数、风险、约束、所需能力、验证数、路径广度）映射到 `low`/`medium`/`high` 难度，再选 `cheap`/`standard`/`premium` profile。同档内 `task.domain`（或推断的领域）软匹配 `profile.strengths`。用 `--profile <name>` 强制；不写 `costTier` 即关闭自动选择。
+在契约里直接声明 `difficulty`（`low`/`medium`/`high`）即按声明路由。不声明时由 `risk` 与 `domain` 主导（`medium` 风险 + `backend`/`systems`/`algorithm` 领域即判 `medium`），而验收条数、验证数、约束数、`tool-use` 这类规模信号最多贡献 +2。难度再选 `cheap`/`standard`/`premium` profile；同档内 `task.domain` 软匹配 `profile.strengths`。用 `--profile <name>` 强制；不写 `costTier` 即关闭自动选择。
 
 ### 多 CLI 后端
-除默认 Pi 后端外，profile 可设 `adapter: kimi | trae | qoder | opencode | codebuddy` 驱动其他编码 CLI（Kimi Code CLI、Trae CLI、Qoder CLI、OpenCode、CodeBuddy Code CLI）。跨 adapter fallback 无缝工作。详见 [`references/provider-configuration.md`](./references/provider-configuration.md)。
+除默认 Pi 后端外，profile 可设 `adapter: kimi | trae | qoder | opencode | codebuddy | zcode` 驱动其他编码 CLI（Kimi Code CLI、Trae CLI、Qoder CLI、OpenCode、CodeBuddy Code CLI、ZCode CLI）。跨 adapter fallback 无缝工作。详见 [`references/provider-configuration.md`](./references/provider-configuration.md)。
 
 ### 成本与节省指标
-每个 run 记录 token 用量（输入/输出/缓存）、位移的主控端 credits、等价主控端 credits、节省率、订阅额度占比。所有 adapter 通过统一的 `message_end` 事件上报 token，因此面板的 Token 与时长两列对每个连接器都是真实数字。若某后端以 credits 而非美元计费（Qoder CN 只返回 `total_credits`，token 计数为 0），该数值单独成字段呈现，美元等价的节省率降级为 `null`，不做臆测换算。
+头号指标是**主模型少花的 token**：worker 侧要么免费、要么有折扣、要么单价低一个数量级，所以判断值不值得委派，看的是主模型那一边。每次 run 都会记录两件事——委派模式下父级实际读的内容（self-review 报告，或完整审查面），以及反事实：自己动手要读 diff + 改动文件（按 1.5 轮算）并写出新增的那些行。两个口径都报：纯 token 比例，和按价格加权的比例（输出 token 约为输入的 4 倍）。计算依据与被排除项都写进 `metrics.json`，数字可复核而不是凭信。
+
+单次明细还记录 token 用量（输入/输出/缓存）、worker 侧 provider 上报的用量，以及——仅当父级 backend 配了费率卡时——折算 credits 与订阅额度占比。按 credits 计费的后端（Qoder CN 只报 `total_credits`，不报 token 数）会把这个值单独暴露，credit 口径的节省率降级为 `null`，绝不编造。
 
 ### 实时监控面板
 HTTP 服务，带刷新按钮、汇总卡片、可过滤 run 表（按 caller、状态、自由文本）、可展开详情行、亮/暗主题，以及 "Connection status" tab 展示 CLI adapter 与 profile 凭证健康度。
@@ -322,6 +325,21 @@ spotworkers **不**自己管理模型凭证 —— 那是 Pi 的职责。流程�
 4. **用 `spot doctor` 校验** —— 它一次过检查 Node、Git、Pi、凭证、模型可用性、task schema。
 
 > **提示**：spotworkers 会按任务难度自动选 profile（`low → cheap`、`medium → standard`、`high → premium`）。如果想强制用某个 profile（比如你只有 MiniMax 凭证），给 `doctor` / `prepare` 传 `--profile minimax-m3`。
+
+### 个人路由偏好（`callerProfiles`）
+
+「从哪个模型起跳」是个人喜好，不该写死在共享仓库的 Agent 规则里。把它写在你自己的 `~/.config/pi-worker/config.json`，按调用方区分：
+
+```json
+{
+  "callerProfiles": {
+    "claude-code": "qoder-qwen-flash",
+    "codex": "minimax-m3"
+  }
+}
+```
+
+不传 `--profile` 时的选择顺序：`--profile` → `callerProfiles[<调用方>]` → 按难度自动路由 → `defaultProfile`。调用方取自 `PARENT_AGENT`（见[调用方识别](#调用方识别)）；键必须是已知调用方、值必须是已有 profile，否则配置校验失败。首选 profile 沿用它自己的 `fallbackProfiles`，所以免费模型接力链（如 Qoder 免费 → CodeBuddy flash）每台机器配一次即可。首选 profile 缺任务所需能力/模态时自动跳过，且永远不会放行 `risk: high` 任务。不带 `--profile` 运行 `spot doctor` 会显示 `profileSource: caller-preference` 和将要使用的接力链。包自带的默认配置不设任何偏好。
 
 ### 多 CLI 后端（Pi / Kimi / Trae / Qoder）
 

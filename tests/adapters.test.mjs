@@ -89,7 +89,7 @@ test('resolveBin uses adapter-specific env var', () => {
 test('listAdapters returns all known adapters', () => {
   const list = listAdapters();
   const names = list.map((a) => a.name).sort();
-  const expected = ['codebuddy', 'kimi', 'opencode', 'pi', 'qoder', 'trae'].sort();
+  const expected = ['codebuddy', 'kimi', 'opencode', 'pi', 'qoder', 'trae', 'zcode'].sort();
   assert.deepEqual(names, expected);
   assert.equal(list.length, expected.length);
 });
@@ -475,4 +475,65 @@ test('CodeBuddyAdapter flags an error result even with exit code 0', () => {
   const adapter = getAdapter('codebuddy');
   const stdout = JSON.stringify({ type: 'result', subtype: 'error_max_turns', is_error: true, result: '' });
   assert.equal(adapter.parseOutput(stdout, '', 0, false).lastAssistant.stopReason, 'error');
+});
+
+test('ZcodeAdapter passes the prompt via argv, forces yolo and removes Bash', () => {
+  const adapter = getAdapter('zcode');
+  const spec = adapter.invokeCommand({ state: { runId: 'r1', worktreePath: '/wt' }, profile: { model: '' }, prompt: 'SECRET_PROMPT', config: { limits: {} } });
+  assert.ok(spec.argv.includes('SECRET_PROMPT'), 'print mode ignores stdin, prompt travels in argv');
+  assert.deepEqual(spec.argv.slice(0, 2), ['--mode', 'yolo']);
+  const disallowAt = spec.argv.indexOf('--disallowed-tools');
+  assert.equal(spec.argv[disallowAt + 1], 'Bash');
+  assert.ok(spec.argv.includes('--json'));
+  assert.equal(spec.cwd, '/wt');
+  assert.equal(spec.input, '');
+});
+
+test('ZcodeAdapter downgrades a pinned model to a recorded warning (no --model flag in 0.17)', () => {
+  const adapter = getAdapter('zcode');
+  const spec = adapter.invokeCommand({ state: { runId: 'r1', worktreePath: '/wt' }, profile: { model: 'glm-5.3' }, prompt: 'p', config: { limits: {} } });
+  assert.ok(!spec.argv.includes('--model'));
+  assert.ok(spec.warnings.some((w) => w.includes('defaultModelSelection')));
+});
+
+test('ZcodeAdapter parses the --json result with full token usage', () => {
+  const adapter = getAdapter('zcode');
+  const stdout = JSON.stringify({
+    sessionId: 'sess_x', response: 'done', eventCount: 3,
+    usage: { source: 'provider', modelRequestCount: 2, inputTokens: 17748, outputTokens: 344, totalTokens: 18092, cacheReadTokens: 1600, cacheWriteTokens: 0, reasoningTokens: 0 },
+  });
+  const parsed = adapter.parseOutput(stdout, '', 0, false);
+  assert.equal(parsed.text, 'done');
+  assert.equal(parsed.stopReason, 'stop');
+  assert.equal(parsed.usage.inputTokens, 17748);
+  assert.equal(parsed.usage.cachedInputTokens, 1600);
+  assert.equal(parsed.usage.requests, 2);
+  assert.equal(parsed.lastAssistant.usage.input, 17748);
+  assert.equal(parsed.lastAssistant.usage.cacheRead, 1600);
+});
+
+test('ZcodeAdapter survives stderr noise and leading banners around the JSON', () => {
+  const adapter = getAdapter('zcode');
+  const stdout = `Godot banner noise\n${JSON.stringify({ response: 'ok', usage: { inputTokens: 5, outputTokens: 1, totalTokens: 6 } })}\n`;
+  const parsed = adapter.parseOutput(stdout, 'ZCode Built-in 刷新失败: EEXIST ...', 0, false);
+  assert.equal(parsed.text, 'ok');
+  assert.equal(parsed.stopReason, 'stop');
+  // the stale provider-refresh lock is noise, not a failure
+  const stderr = 'ZCode Built-in 刷新失败: EEXIST: file already exists, mkdir ...';
+  assert.equal(adapter.classifyFailure({ stderr, stdout: '', exitCode: 0, timedOut: false }), 'permanent');
+});
+
+test('ZcodeAdapter classifies login problems as auth', () => {
+  const adapter = getAdapter('zcode');
+  const stderr = 'zcode: not logged in — run `zcode login bigmodel` first';
+  assert.equal(adapter.classifyFailure({ stderr, stdout: '', exitCode: 1, timedOut: false }), 'auth');
+  const parsed = adapter.parseOutput('', stderr, 1, false);
+  assert.equal(parsed.lastAssistant.stopReason, 'error');
+});
+
+test('ZcodeAdapter keeps the real HOME so the shared OAuth login survives', async () => {
+  const adapter = getAdapter('zcode');
+  const sanitized = await adapter.sanitizeHome({ env: { HOME: '/Users/xiao9', PATH: '/usr/bin' } });
+  assert.equal(sanitized.home, '/Users/xiao9');
+  assert.equal(sanitized.env.CI, '1');
 });

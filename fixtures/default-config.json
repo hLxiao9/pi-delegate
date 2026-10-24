@@ -30,7 +30,26 @@
     "**/*credential*",
     "**/*secret*"
   ],
+  "alwaysLockedPaths": [
+    ".github/workflows/**",
+    ".github/actions/**",
+    ".gitlab-ci.yml",
+    ".circleci/**",
+    "**/vitest.config.*",
+    "**/jest.config.*",
+    "**/jest.setup.*",
+    "**/playwright.config.*",
+    "**/cypress.config.*",
+    "**/.mocharc.*",
+    "**/karma.conf.*",
+    "**/pytest.ini",
+    "**/tox.ini",
+    "**/setup.cfg",
+    "**/phpunit.xml*"
+  ],
   "parentRateCard": {
+    "backend": "codex",
+    "shape": "cumulative",
     "model": "gpt-5.6-sol",
     "effectiveDate": "2026-07-23",
     "source": "https://help.openai.com/en/articles/20001106-codex-rate-card",
@@ -294,6 +313,30 @@
       "strengths": [
         "frontend",
         "backend"
+      ],
+      "modalities": [
+        "text"
+      ]
+    },
+    "zcode": {
+      "adapter": "zcode",
+      "provider": "zai",
+      "model": "",
+      "capabilities": [
+        "text",
+        "code",
+        "tool-use"
+      ],
+      "fallbackProfiles": [],
+      "costTier": "standard",
+      "monthlyPlan": {
+        "currency": "CNY",
+        "amount": 0
+      },
+      "strengths": [
+        "backend",
+        "frontend",
+        "docs"
       ],
       "modalities": [
         "text"

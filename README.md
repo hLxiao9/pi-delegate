@@ -28,18 +28,19 @@ The main agent never asks the user to defend code it did not write. **Treat the 
 `doctor → prepare → run → verify → self-review → approve → integrate → report → cleanup`. The wrapper re-runs your verification commands itself (not Pi's claims) and the diff hash is checked at every gate — a changed hash blocks approval.
 
 ### Anti-cheat self-review (parent token saver)
-Before the parent agent reads the full diff, an optional second Pi turn re-reads its own work and emits a compact `self-review.json` (~50 lines vs thousands). Five anti-cheat safeguards keep it honest:
-- `verification.json` is produced by the wrapper, not Pi — Pi cannot lie about test results.
-- `diffSha256Mismatch=true` if Pi echoes the wrong hash → parent falls back to full review.
-- `fallbackRecommended=true` when Pi self-reports `unmet`/`uncertain` or any P0–P2 finding → parent falls back.
+Before the parent agent reads the full diff, an optional second worker turn re-reads its own work and emits a compact `self-review.json` (~50 lines vs thousands). Safeguards keep it honest:
+- `verification.json` is produced by the wrapper, not the worker — it cannot lie about test results.
+- `diffSha256Mismatch=true` if it echoes the wrong hash → parent escalates to a full review.
+- `fallbackRecommended=true` when it self-reports `unmet`/`uncertain` or any P0–P2 finding → parent escalates.
 - `approve` re-scans the diff and rejects if the hash changed.
 - High-risk tasks never reach self-review (`HIGH_RISK_BLOCKED`).
 
-Self-review never blocks the loop — on Pi failure, parse failure, or diff below `minDiffBytes`, it self-degrades to `reviewing` with `skipped:true`. Disable with `selfReview.enabled=false`.
+Self-review never blocks the loop — on worker failure, parse failure, a diff below `minDiffBytes`, or a review surface (diff + changed files) below `minSurfaceBytes`, it self-degrades to `reviewing` with `skipped:true`. `minSurfaceBytes` (default 4000) exists because a report is ~700 bytes per acceptance criterion while a small diff is cheaper to just read. Disable with `selfReview.enabled=false`; tune the proportional check with `selfReview.spotCheckRatio` (default 0.34).
 
 ### Hard gates & security
 - Wrapper verification success, unchanged diff hash, passed security scan, acceptance evidence, and **zero unresolved P0–P2 findings** required to approve.
-- Pi is treated as untrusted: Bash, extensions, Skills, prompt templates, context files, and project auto-trust are never enabled.
+- The worker cannot edit the harness that grades it: contract `lockedPaths`, config `alwaysLockedPaths` (CI + test-runner config), and the execution keys of `package.json` (`scripts`, `jest`, `vitest`, `mocha`, `ava`, `nyc`, `c8`, `workspaces`, `packageManager`) are frozen. Dependencies stay editable. Violations block with `LOCKED_PATH_CHANGED` / `VERIFICATION_SCRIPT_CHANGED`.
+- The worker is treated as untrusted: Bash, extensions, Skills, prompt templates, context files, and project auto-trust are never enabled.
 - Never pushes, creates PRs, changes remotes, or describes worktree isolation as an OS sandbox.
 - Never routes around authentication errors or capability mismatches with a fallback — a setup/credential failure is a real blocker.
 
@@ -53,13 +54,15 @@ Tracks the caller (`trae`, `codex`, `claude-code`, `cursor`, `pi-recursive`, `cl
 Multiple parent-agent sessions can run concurrently — each run gets an isolated Git worktree, state directory, and per-run file lock, so different runs never collide and the same run is never advanced by two processes at once. `maxConcurrentRuns` (default 4, range 1–16) caps active runs; `prepare` rejects with `CONCURRENCY_LIMIT` when the cap is hit. The dashboard reads `state.json` with JSON-parse tolerance, so a snapshot never crashes on a concurrent write.
 
 ### Automatic model selection by difficulty
-Task signals (goal length, acceptance-criteria count, risk, constraints, required capabilities, verification count, path breadth) map to `low`/`medium`/`high` difficulty, which selects a `cheap`/`standard`/`premium` profile. Within a tier, `task.domain` (or an inferred domain) soft-matches `profile.strengths`. Override with `--profile <name>`; disable auto-selection by leaving `costTier` off your profiles.
+Declare `difficulty` in the contract (`low`/`medium`/`high`) and routing follows it. Without a declaration, `risk` and `domain` decide — `medium` risk plus a `backend`/`systems`/`algorithm` domain is already `medium` — and harness-size signals (acceptance count, verification count, constraint count, `tool-use`) add at most +2. Difficulty selects a `cheap`/`standard`/`premium` profile; within a tier, `task.domain` soft-matches `profile.strengths`. Override with `--profile <name>`; disable auto-selection by leaving `costTier` off your profiles.
 
 ### Multi-CLI backends
-Beyond the default Pi backend, profiles can set `adapter: kimi | trae | qoder | opencode | codebuddy` to drive other coding CLIs (Kimi Code CLI, Trae CLI, Qoder CLI, OpenCode, CodeBuddy Code CLI). Cross-adapter fallback works seamlessly. See [`references/provider-configuration.md`](./references/provider-configuration.md).
+Beyond the default Pi backend, profiles can set `adapter: kimi | trae | qoder | opencode | codebuddy | zcode` to drive other coding CLIs (Kimi Code CLI, Trae CLI, Qoder CLI, OpenCode, CodeBuddy Code CLI, ZCode CLI). Cross-adapter fallback works seamlessly. See [`references/provider-configuration.md`](./references/provider-configuration.md).
 
 ### Cost & savings metrics
-Every run records token usage (input/output/cached), displaced parent-side credits, equivalent parent credits, saving rate, and subscription-allowance portion. All adapters report tokens through a unified `message_end` event, so the dashboard's Token and duration columns are real per-connector numbers. Where a backend bills in credits instead of dollars (Qoder CN reports `total_credits`, not token counts), that figure is surfaced as its own field and the dollar-equivalent saving rate degrades to `null` rather than being invented.
+The headline number is **main-model tokens avoided**, because the worker side is free, discounted, or far cheaper per token. Every run records what the parent read in delegation mode (self-review report, or the full review surface) against a counterfactual of reading the diff plus changed files over 1.5 cycles and writing the added lines — reported as both a token ratio and a spend-weighted ratio (output tokens cost ~4x input). The basis and excluded terms are written into `metrics.json`, so the number can be audited instead of trusted.
+
+Per-run detail also records token usage (input/output/cached), the worker's provider-side usage, and — only when the parent backend has a rate card — displaced credits and subscription-allowance portion. Where a backend bills in credits instead of dollars (Qoder CN reports `total_credits`, not token counts), that figure is surfaced as its own field and the credit-based saving degrades to `null` rather than being invented.
 
 ### Live monitoring dashboard
 HTTP server with refresh button, summary cards, filterable run table (by caller, status, free text), expandable detail rows, light/dark theme, and a "Connection status" tab showing CLI adapter and profile credential health.
@@ -326,6 +329,21 @@ spotworkers does **not** manage model credentials itself — Pi does. The flow i
 4. **Validate** with `spot doctor` — it checks Node, Git, Pi, credentials, model availability, and task schema in one pass.
 
 > **Tip**: spotworkers auto-selects a profile by task difficulty (`low → cheap`, `medium → standard`, `high → premium`). To force a specific profile (e.g. you only have MiniMax credentials), pass `--profile minimax-m3` to `doctor` / `prepare`.
+
+### Personal routing preference (`callerProfiles`)
+
+Which model *you* like to start from is a personal taste, not something to hardcode into a shared repo's agent instructions. Put it in your own `~/.config/pi-worker/config.json`, keyed by caller:
+
+```json
+{
+  "callerProfiles": {
+    "claude-code": "qoder-qwen-flash",
+    "codex": "minimax-m3"
+  }
+}
+```
+
+When no `--profile` is given, the order is: `--profile` → `callerProfiles[<caller>]` → difficulty routing → `defaultProfile`. The caller comes from `PARENT_AGENT` (see [Caller identification](#caller-identification)); keys must be known callers and values existing profiles, or the config is rejected. The preferred profile keeps its own `fallbackProfiles`, so a free-model chain (e.g. Qoder free → CodeBuddy flash) is configured once, per machine. A preference is skipped when that profile cannot take the task (missing capability/modality), and it never unblocks a `risk: high` task. `spot doctor` without `--profile` reports `profileSource: caller-preference` and the chain it will use. The shipped default config sets no preference.
 
 ### Multi-CLI backends (Pi / Kimi / Trae / Qoder)
 

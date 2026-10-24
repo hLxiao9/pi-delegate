@@ -1,6 +1,6 @@
 {
   "name": "spotworkers",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Outsource bounded coding tasks to cheap agent workers. Your main agent keeps architecture, verification and commit rights — and you stop burning your quota.",
   "type": "module",
   "engines": {
